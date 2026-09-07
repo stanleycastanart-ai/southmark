@@ -32,6 +32,13 @@
       <b>SOUTHMARK</b>
     </section>
 
+    <aside class="mode-rail" aria-label="Viewer tools">
+      <button type="button" class="rail-button active" data-mode="orbit"><span>◌</span>Orbit</button>
+      <button type="button" class="rail-button" data-mode="walk"><span>↟</span>Walk</button>
+      <button type="button" class="rail-button" id="top-view"><span>⌁</span>Top</button>
+      <button type="button" class="rail-button" id="section-view"><span>⊟</span>Section</button>
+    </aside>
+
     <section id="welcome" class="panel">
       <p class="eyebrow">READY FOR YOUR MODEL</p>
       <h1>Explore the space</h1>
@@ -43,6 +50,22 @@
 
     <div id="loading" class="status" hidden>Loading space…</div>
     <div id="error" class="status error" hidden></div>
+    <section id="object-info" class="object-info" hidden>
+      <button type="button" id="close-info" aria-label="Close object information">×</button>
+      <p class="eyebrow">SELECTED OBJECT</p>
+      <h2 id="object-name">Object</h2>
+      <dl><div><dt>Width</dt><dd id="object-width">—</dd></div><div><dt>Depth</dt><dd id="object-depth">—</dd></div><div><dt>Height</dt><dd id="object-height">—</dd></div></dl>
+    </section>
+    <section id="section-panel" class="section-panel" hidden>
+      <div><span>SECTION HEIGHT</span><button type="button" id="close-section" aria-label="Close section control">×</button></div>
+      <input id="section-height" type="range" min="0" max="100" value="100" aria-label="Section height" />
+      <output id="section-readout">—</output>
+    </section>
+    <section id="walk-ui" class="walk-ui" hidden>
+      <div id="walk-stick" class="walk-stick" aria-label="Walk direction"><i></i></div>
+      <div class="walk-look">DRAG TO LOOK</div>
+      <p>Use WASD + mouse, or touch controls</p>
+    </section>
     <nav class="presentation-controls" aria-label="Presentation controls">
       <div class="view-picker" role="group" aria-label="Camera views">
         <button type="button" class="view-button active" data-view="overview">Overview</button>
@@ -50,6 +73,8 @@
         <button type="button" class="view-button" data-view="side">Side</button>
       </div>
       <div class="utility-controls">
+        <button type="button" class="icon-button text-icon" id="save-view" aria-label="Save current camera view" title="Save view">＋</button>
+        <button type="button" class="icon-button text-icon" id="auto-tour" aria-label="Start auto tour" title="Auto tour">▷</button>
         <button type="button" class="icon-button" id="reset-view" aria-label="Reset camera" title="Reset camera">
           <span aria-hidden="true">↺</span>
         </button>
@@ -60,6 +85,6 @@
     </nav>
     <div class="gesture-hint"><span class="gesture-icon">⌁</span> Drag to orbit <i></i> Pinch to zoom</div>
 
-    <script type="module" src="./viewer.js?v=5"></script>
+    <script type="module" src="./viewer.js?v=6"></script>
   </body>
 </html>
