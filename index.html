@@ -22,9 +22,15 @@
       <span class="mark">S</span>
       <div>
         <strong>STANSPACE</strong>
-        <small>Web 3D Viewer</small>
+        <small>Southmark · 3D Presentation</small>
       </div>
     </header>
+
+    <section class="project-label" aria-label="Project information">
+      <span class="live-dot"></span>
+      <span>INTERIOR STUDY</span>
+      <b>SOUTHMARK</b>
+    </section>
 
     <section id="welcome" class="panel">
       <p class="eyebrow">READY FOR YOUR MODEL</p>
@@ -35,10 +41,25 @@
       <p class="hint">On desktop, you can also drop a .glb file anywhere.</p>
     </section>
 
-    <div id="loading" class="status" hidden>Loading model…</div>
+    <div id="loading" class="status" hidden>Loading space…</div>
     <div id="error" class="status error" hidden></div>
-    <div class="controls">Drag to orbit · Pinch or scroll to zoom</div>
+    <nav class="presentation-controls" aria-label="Presentation controls">
+      <div class="view-picker" role="group" aria-label="Camera views">
+        <button type="button" class="view-button active" data-view="overview">Overview</button>
+        <button type="button" class="view-button" data-view="front">Front</button>
+        <button type="button" class="view-button" data-view="side">Side</button>
+      </div>
+      <div class="utility-controls">
+        <button type="button" class="icon-button" id="reset-view" aria-label="Reset camera" title="Reset camera">
+          <span aria-hidden="true">↺</span>
+        </button>
+        <button type="button" class="icon-button" id="fullscreen" aria-label="Enter fullscreen" title="Fullscreen">
+          <span aria-hidden="true">⛶</span>
+        </button>
+      </div>
+    </nav>
+    <div class="gesture-hint"><span class="gesture-icon">⌁</span> Drag to orbit <i></i> Pinch to zoom</div>
 
-    <script type="module" src="./viewer.js?v=2"></script>
+    <script type="module" src="./viewer.js?v=3"></script>
   </body>
 </html>
