@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#111827" />
     <title>STANSPACE 3D Viewer</title>
-    <link rel="stylesheet" href="./styles-v01.css" />
+    <link rel="stylesheet" href="./styles-v02.css" />
     <script type="importmap">
       {
         "imports": {
@@ -34,7 +34,6 @@
 
     <aside class="mode-rail" aria-label="Viewer tools">
       <button type="button" class="rail-button active" data-mode="orbit"><span>◌</span>Orbit</button>
-      <button type="button" class="rail-button" data-mode="walk"><span>↟</span>Walk</button>
       <button type="button" class="rail-button" id="top-view"><span>⌁</span>Top</button>
       <button type="button" class="rail-button" id="section-view"><span>⊟</span>Section</button>
     </aside>
@@ -61,18 +60,19 @@
       <input id="section-height" type="range" min="0" max="100" value="100" aria-label="Section height" />
       <output id="section-readout">—</output>
     </section>
-    <section id="walk-ui" class="walk-ui" hidden>
-      <div id="walk-stick" class="walk-stick" aria-label="Walk direction"><i></i></div>
-      <div class="walk-look">DRAG TO LOOK</div>
-      <p>Use WASD + mouse, or touch controls</p>
+    <section class="camera-control" aria-label="Camera lens control">
+      <div><span>CAMERA LENS</span><output id="lens-readout">28 mm</output></div>
+      <input id="lens-range" type="range" min="15" max="50" value="28" step="1" aria-label="Camera lens from 15 to 50 millimetres" />
     </section>
     <nav class="presentation-controls" aria-label="Presentation controls">
       <div class="view-picker" role="group" aria-label="Camera views">
+        <button type="button" class="view-button" data-view="entrance">Entrance</button>
         <button type="button" class="view-button active" data-view="overview">Overview</button>
         <button type="button" class="view-button" data-view="front">Front</button>
         <button type="button" class="view-button" data-view="side">Side</button>
       </div>
       <div class="utility-controls">
+        <button type="button" class="icon-button text-icon" id="set-entrance" aria-label="Set current view as entrance" title="Set current view as entrance">⌂</button>
         <button type="button" class="icon-button text-icon" id="save-view" aria-label="Save current camera view" title="Save view">＋</button>
         <button type="button" class="icon-button text-icon" id="auto-tour" aria-label="Start auto tour" title="Auto tour">▷</button>
         <button type="button" class="icon-button" id="reset-view" aria-label="Reset camera" title="Reset camera">
@@ -85,6 +85,6 @@
     </nav>
     <div class="gesture-hint"><span class="gesture-icon">⌁</span> Drag to orbit <i></i> Pinch to zoom</div>
 
-    <script type="module" src="./viewer-v01.js"></script>
+    <script type="module" src="./viewer-v02.js"></script>
   </body>
 </html>
