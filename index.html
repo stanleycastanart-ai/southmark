@@ -34,6 +34,8 @@
 
     <aside class="mode-rail" aria-label="Viewer tools">
       <button type="button" class="rail-button active" data-mode="orbit"><span>◌</span>Orbit</button>
+      <button type="button" class="rail-button" data-mode="touch-move"><span>✥</span>Touch Move</button>
+      <button type="button" class="rail-button" id="measure-mode"><span>⌑</span>Measure</button>
       <button type="button" class="rail-button" id="top-view"><span>⌁</span>Top</button>
       <button type="button" class="rail-button" id="section-view"><span>⊟</span>Section</button>
     </aside>
@@ -49,16 +51,14 @@
 
     <div id="loading" class="status" hidden>Loading space…</div>
     <div id="error" class="status error" hidden></div>
-    <section id="object-info" class="object-info" hidden>
-      <button type="button" id="close-info" aria-label="Close object information">×</button>
-      <p class="eyebrow">SELECTED OBJECT</p>
-      <h2 id="object-name">Object</h2>
-      <dl><div><dt>Width</dt><dd id="object-width">—</dd></div><div><dt>Depth</dt><dd id="object-depth">—</dd></div><div><dt>Height</dt><dd id="object-height">—</dd></div></dl>
-    </section>
     <section id="section-panel" class="section-panel" hidden>
       <div><span>SECTION HEIGHT</span><button type="button" id="close-section" aria-label="Close section control">×</button></div>
       <input id="section-height" type="range" min="0" max="100" value="100" aria-label="Section height" />
       <output id="section-readout">—</output>
+    </section>
+    <section id="measurement-panel" class="measurement-panel" hidden>
+      <span id="measurement-copy">Tap the first point</span>
+      <strong id="measurement-result"></strong>
     </section>
     <section class="camera-control" aria-label="Camera lens control">
       <div><span>CAMERA LENS</span><output id="lens-readout">28 mm</output></div>
@@ -83,7 +83,7 @@
         </button>
       </div>
     </nav>
-    <div class="gesture-hint"><span class="gesture-icon">⌁</span> Drag to orbit <i></i> Pinch to zoom</div>
+    <div class="gesture-hint" id="gesture-hint"><span class="gesture-icon">⌁</span><span id="gesture-copy">Drag to orbit</span><i></i> Pinch to zoom</div>
 
     <script type="module" src="./viewer-v02.js"></script>
   </body>
