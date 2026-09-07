@@ -11,12 +11,17 @@ const errorBox = document.querySelector('#error');
 const resetButton = document.querySelector('#reset-view');
 const fullscreenButton = document.querySelector('#fullscreen');
 const viewButtons = [...document.querySelectorAll('.view-button')];
+const modeButtons = [...document.querySelectorAll('[data-mode]')];
 const topButton = document.querySelector('#top-view');
 const sectionButton = document.querySelector('#section-view');
 const sectionPanel = document.querySelector('#section-panel');
 const sectionRange = document.querySelector('#section-height');
 const sectionReadout = document.querySelector('#section-readout');
-const objectInfo = document.querySelector('#object-info');
+const measureButton = document.querySelector('#measure-mode');
+const measurementPanel = document.querySelector('#measurement-panel');
+const measurementCopy = document.querySelector('#measurement-copy');
+const measurementResult = document.querySelector('#measurement-result');
+const gestureCopy = document.querySelector('#gesture-copy');
 const lensRange = document.querySelector('#lens-range');
 const lensReadout = document.querySelector('#lens-readout');
 const saveViewButton = document.querySelector('#save-view');
@@ -50,6 +55,8 @@ controls.screenSpacePanning = true;
 
 const grid = new THREE.GridHelper(20, 20, 0x344050, 0x202733);
 scene.add(grid);
+const measurementGroup = new THREE.Group();
+scene.add(measurementGroup);
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -65,10 +72,13 @@ let currentSphere;
 let activeView = 'overview';
 let transition;
 let modelBox;
-let selectedMesh;
 let savedViews = JSON.parse(localStorage.getItem('stanspace-saved-views') || '[]');
 let entranceView = JSON.parse(localStorage.getItem('stanspace-entrance-view') || 'null');
 let tourTimer;
+let navigationMode = 'orbit';
+let measureMode = false;
+let measurementPoints = [];
+let measurementPointer;
 
 function updateLens() {
   const focalLength = Number(lensRange.value);
@@ -157,6 +167,65 @@ function moveToTopView() {
   setActiveView('');
 }
 
+function setNavigationMode(mode) {
+  if (measureMode) setMeasureMode(false);
+  navigationMode = mode;
+  const touchMove = mode === 'touch-move';
+  controls.mouseButtons.LEFT = touchMove ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
+  controls.mouseButtons.RIGHT = touchMove ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN;
+  controls.touches.ONE = touchMove ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+  controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
+  controls.screenSpacePanning = !touchMove;
+  modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
+  document.body.classList.toggle('touch-moving', touchMove);
+  gestureCopy.textContent = touchMove ? 'Drag to move viewpoint' : 'Drag to orbit';
+}
+
+function clearMeasurement() {
+  measurementPoints = [];
+  measurementGroup.clear();
+  measurementResult.textContent = '';
+  measurementCopy.textContent = 'Tap the first point';
+}
+
+function setMeasureMode(enabled) {
+  measureMode = enabled;
+  controls.enabled = !enabled;
+  measureButton.classList.toggle('active', enabled);
+  measurementPanel.hidden = !enabled;
+  document.body.classList.toggle('measuring', enabled);
+  if (enabled && measurementPoints.length === 2) clearMeasurement();
+}
+
+function addMeasurementPoint(event) {
+  if (!measureMode || !currentModel) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObject(currentModel, true)[0];
+  if (!hit) return;
+  if (measurementPoints.length === 2) clearMeasurement();
+  const point = hit.point.clone();
+  measurementPoints.push(point);
+  const markerRadius = Math.max((currentSphere?.radius ?? 1) * .0022, .004);
+  const marker = new THREE.Mesh(new THREE.SphereGeometry(markerRadius, 16, 10), new THREE.MeshBasicMaterial({ color: 0x185b4c, depthTest: false }));
+  marker.position.copy(point); marker.renderOrder = 10; measurementGroup.add(marker);
+  if (measurementPoints.length === 1) {
+    measurementCopy.textContent = 'Tap the second point';
+    return;
+  }
+  const measurementLine = new THREE.LineCurve3(measurementPoints[0], measurementPoints[1]);
+  const line = new THREE.Mesh(
+    new THREE.TubeGeometry(measurementLine, 1, markerRadius * .32, 8, false),
+    new THREE.MeshBasicMaterial({ color: 0x185b4c, depthTest: false }),
+  );
+  line.renderOrder = 9; measurementGroup.add(line);
+  const distanceMm = measurementPoints[0].distanceTo(measurementPoints[1]) * 1000;
+  measurementCopy.textContent = 'Distance';
+  measurementResult.textContent = `${Math.round(distanceMm).toLocaleString()} mm`;
+}
+
 
 function setSection(enabled) {
   sectionPanel.hidden = !enabled;
@@ -176,26 +245,6 @@ function updateSection() {
   const y = THREE.MathUtils.lerp(modelBox.min.y, modelBox.max.y, Number(sectionRange.value) / 100);
   sectionPlane.constant = y;
   sectionReadout.value = `${Math.round((y - modelBox.min.y) * 1000)} mm`;
-}
-
-function selectObject(event) {
-  if (!currentModel || event.target.closest('button, input, label')) return;
-  const rect = renderer.domElement.getBoundingClientRect();
-  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObject(currentModel, true)[0];
-  if (!hit) return;
-  if (selectedMesh?.material?.emissive) selectedMesh.material.emissive.setHex(0x000000);
-  selectedMesh = hit.object;
-  if (selectedMesh.material?.emissive) selectedMesh.material.emissive.setHex(0x113f34);
-  const bounds = new THREE.Box3().setFromObject(selectedMesh);
-  const size = bounds.getSize(new THREE.Vector3());
-  document.querySelector('#object-name').textContent = selectedMesh.name || selectedMesh.parent?.name || 'Interior element';
-  document.querySelector('#object-width').textContent = `${Math.round(size.x * 1000)} mm`;
-  document.querySelector('#object-depth').textContent = `${Math.round(size.z * 1000)} mm`;
-  document.querySelector('#object-height').textContent = `${Math.round(size.y * 1000)} mm`;
-  objectInfo.hidden = false;
 }
 
 function saveCurrentView() {
@@ -229,12 +278,13 @@ function startAutoTour() {
 }
 
 viewButtons.forEach((button) => button.addEventListener('click', () => moveToView(button.dataset.view)));
+modeButtons.forEach((button) => button.addEventListener('click', () => setNavigationMode(button.dataset.mode)));
+measureButton.addEventListener('click', () => setMeasureMode(!measureMode));
 resetButton.addEventListener('click', () => moveToView('overview'));
 topButton.addEventListener('click', moveToTopView);
 sectionButton.addEventListener('click', () => setSection(sectionPanel.hidden));
 document.querySelector('#close-section').addEventListener('click', () => setSection(false));
 sectionRange.addEventListener('input', updateSection);
-document.querySelector('#close-info').addEventListener('click', () => { objectInfo.hidden = true; });
 saveViewButton.addEventListener('click', saveCurrentView);
 setEntranceButton.addEventListener('click', saveEntranceView);
 lensRange.addEventListener('input', updateLens);
@@ -286,7 +336,17 @@ window.addEventListener('resize', () => {
   renderer.setSize(innerWidth, innerHeight);
 });
 
-renderer.domElement.addEventListener('click', selectObject);
+renderer.domElement.addEventListener('pointerdown', (event) => {
+  if (measureMode) measurementPointer = { x: event.clientX, y: event.clientY };
+  if (navigationMode === 'touch-move') document.body.classList.add('pointer-dragging');
+});
+window.addEventListener('pointerup', (event) => {
+  document.body.classList.remove('pointer-dragging');
+  if (!measurementPointer) return;
+  const isTap = Math.hypot(event.clientX - measurementPointer.x, event.clientY - measurementPointer.y) < 12;
+  measurementPointer = undefined;
+  if (isTap) addMeasurementPoint(event);
+});
 renderer.setAnimationLoop(() => {
   if (transition) {
     const progress = Math.min((performance.now() - transition.start) / transition.duration, 1);
