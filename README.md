@@ -2,7 +2,7 @@
 
 A minimal, mobile-friendly Three.js viewer for SketchUp-exported GLB models.
 
-Current public build: V01 presentation and walkthrough controls.
+Current public build: V02 presentation controls with Touch Move and two-point measurement.
 
 ## Add the presentation model
 
