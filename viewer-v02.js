@@ -26,6 +26,7 @@ const lensReadout = document.querySelector('#lens-readout');
 const joystick = document.querySelector('#walk-joystick');
 const joystickRing = joystick.querySelector('.joystick-ring');
 const joystickKnob = joystick.querySelector('.joystick-knob');
+const lightingButtons = [...document.querySelectorAll('[data-lighting]')];
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0f17);
@@ -37,15 +38,55 @@ const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'hi
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
-renderer.toneMapping = THREE.ACESFilmicToneMapping;
-renderer.toneMappingExposure = 1.05;
+renderer.toneMapping = THREE.AgXToneMapping;
+renderer.toneMappingExposure = 1.28;
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.append(renderer.domElement);
 
 const environment = new RoomEnvironment();
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(environment).texture;
+scene.environmentIntensity = .3;
 environment.dispose();
 pmrem.dispose();
+
+// Neutral architectural fill with a subtle 4500K key light. One shadow-casting
+// light keeps the interior soft while limiting GPU cost on iPad Safari.
+const hemisphereLight = new THREE.HemisphereLight(0xf4f7ff, 0xc8c1b5, .1);
+scene.add(hemisphereLight);
+const architecturalLight = new THREE.DirectionalLight(0xfff1dc, 4.1);
+architecturalLight.castShadow = true;
+architecturalLight.shadow.mapSize.set(1024, 1024);
+architecturalLight.shadow.bias = -.00015;
+architecturalLight.shadow.normalBias = .025;
+architecturalLight.shadow.radius = 4;
+scene.add(architecturalLight, architecturalLight.target);
+const architecturalFill = new THREE.DirectionalLight(0xe8f1ff, .28);
+scene.add(architecturalFill, architecturalFill.target);
+
+function setLightingMode(mode) {
+  const enhanced = mode === 'enhanced';
+  renderer.toneMapping = enhanced ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
+  renderer.toneMappingExposure = enhanced ? 1.28 : 1.05;
+  renderer.shadowMap.enabled = enhanced;
+  renderer.shadowMap.needsUpdate = true;
+  scene.environmentIntensity = enhanced ? .3 : 1;
+  hemisphereLight.intensity = enhanced ? .1 : 0;
+  architecturalLight.intensity = enhanced ? 4.1 : 0;
+  architecturalFill.intensity = enhanced ? .28 : 0;
+  lightingButtons.forEach((button) => {
+    const active = button.dataset.lighting === mode;
+    button.classList.toggle('active', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
+  currentModel?.traverse((node) => {
+    if (node.isMesh && node.material) {
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => { material.needsUpdate = true; });
+    }
+  });
+}
 
 const controls = new OrbitControls(camera, renderer.domElement);
 controls.enableDamping = true;
@@ -117,6 +158,35 @@ function frameModel(model) {
   grid.scale.setScalar(Math.max(sphere.radius / 8, 1));
   currentSphere = sphere.clone();
   modelBox = box.clone();
+  const size = box.getSize(new THREE.Vector3());
+  const shadowExtent = Math.max(size.x, size.z) * .55;
+  architecturalLight.position.set(
+    box.min.x + size.x * .58,
+    box.min.y + size.y * .84,
+    box.min.z + size.z * .62,
+  );
+  architecturalLight.target.position.set(
+    box.min.x + size.x * .82,
+    box.min.y + size.y * .08,
+    box.min.z + size.z * .86,
+  );
+  architecturalFill.position.set(
+    box.min.x + size.x * .9,
+    box.min.y + size.y * .52,
+    box.min.z + size.z * .9,
+  );
+  architecturalFill.target.position.set(
+    box.min.x + size.x * .68,
+    box.min.y + size.y * .18,
+    box.min.z + size.z * .72,
+  );
+  architecturalLight.shadow.camera.left = -shadowExtent;
+  architecturalLight.shadow.camera.right = shadowExtent;
+  architecturalLight.shadow.camera.top = shadowExtent;
+  architecturalLight.shadow.camera.bottom = -shadowExtent;
+  architecturalLight.shadow.camera.near = .1;
+  architecturalLight.shadow.camera.far = Math.max(size.y * 2.5, shadowExtent * 2);
+  architecturalLight.shadow.camera.updateProjectionMatrix();
   moveToNamedView('entrance', false);
 }
 
@@ -299,6 +369,7 @@ function updateSection() {
 }
 
 viewButtons.forEach((button) => button.addEventListener('click', () => moveToNamedView(button.dataset.view)));
+lightingButtons.forEach((button) => button.addEventListener('click', () => setLightingMode(button.dataset.lighting)));
 modeButtons.forEach((button) => button.addEventListener('click', () => setNavigationMode(button.dataset.mode)));
 measureButton.addEventListener('click', () => setMeasureMode(!measureMode));
 topButton.addEventListener('click', moveToTopView);
@@ -322,6 +393,12 @@ function loadModel(url, revokeAfter = false) {
   loader.load(url, (gltf) => {
     if (currentModel) scene.remove(currentModel);
     currentModel = gltf.scene;
+    currentModel.traverse((node) => {
+      if (!node.isMesh) return;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      node.castShadow = materials.every((material) => !material.transparent && material.opacity > .85);
+      node.receiveShadow = true;
+    });
     scene.add(currentModel);
     frameModel(currentModel);
     document.body.classList.add('model-loaded');
@@ -463,3 +540,4 @@ fetch('./assets/model.glb', { method: 'HEAD' }).then((response) => {
 
 updateLens();
 setNavigationMode('walk');
+setLightingMode('enhanced');
