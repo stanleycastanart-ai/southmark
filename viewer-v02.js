@@ -23,6 +23,19 @@ const measurementResult = document.querySelector('#measurement-result');
 const gestureCopy = document.querySelector('#gesture-copy');
 const lensRange = document.querySelector('#lens-range');
 const lensReadout = document.querySelector('#lens-readout');
+const sunRange = document.querySelector('#sun-range');
+const sunReadout = document.querySelector('#sun-readout');
+const spotlightTool = document.querySelector('#spotlight-tool');
+const spotlightPanel = document.querySelector('#spotlight-panel');
+const closeSpotlight = document.querySelector('#close-spotlight');
+const spotlightToggle = document.querySelector('#spotlight-toggle');
+const spotlightPlace = document.querySelector('#spotlight-place');
+const spotlightCount = document.querySelector('#spotlight-count');
+const spotlightOutputRange = document.querySelector('#spotlight-output-range');
+const spotlightOutput = document.querySelector('#spotlight-output');
+const spotlightBeamRange = document.querySelector('#spotlight-beam-range');
+const spotlightBeam = document.querySelector('#spotlight-beam');
+const spotlightInstruction = document.querySelector('#spotlight-instruction');
 const joystick = document.querySelector('#walk-joystick');
 const joystickRing = joystick.querySelector('.joystick-ring');
 const joystickKnob = joystick.querySelector('.joystick-knob');
@@ -64,9 +77,34 @@ architecturalLight.shadow.radius = 4;
 scene.add(architecturalLight, architecturalLight.target);
 const architecturalFill = new THREE.DirectionalLight(0xe8f1ff, .28);
 scene.add(architecturalFill, architecturalFill.target);
+let enhancedLighting = true;
+
+function updateSunlight() {
+  const hour = Number(sunRange.value);
+  const minutes = Math.round((hour % 1) * 60);
+  sunReadout.value = `${String(Math.floor(hour)).padStart(2, '0')}:${String(minutes).padStart(2, '0')}`;
+  if (!modelBox) return;
+  const daylight = THREE.MathUtils.clamp((hour - 7) / 12, 0, 1);
+  const altitude = Math.max(.18, Math.sin(daylight * Math.PI));
+  const size = modelBox.getSize(new THREE.Vector3());
+  architecturalLight.position.set(
+    THREE.MathUtils.lerp(modelBox.max.x + size.x * .18, modelBox.min.x - size.x * .12, daylight),
+    modelBox.min.y + size.y * (.42 + altitude * .58),
+    modelBox.max.z + size.z * .12,
+  );
+  architecturalLight.target.position.set(
+    modelBox.min.x + size.x * .74,
+    modelBox.min.y + size.y * .12,
+    modelBox.min.z + size.z * .79,
+  );
+  architecturalLight.intensity = enhancedLighting ? 2.5 + altitude * 2.2 : 0;
+  architecturalLight.target.updateMatrixWorld();
+  architecturalLight.shadow.needsUpdate = true;
+}
 
 function setLightingMode(mode) {
   const enhanced = mode === 'enhanced';
+  enhancedLighting = enhanced;
   renderer.toneMapping = enhanced ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = enhanced ? 1.28 : 1.05;
   renderer.shadowMap.enabled = enhanced;
@@ -86,6 +124,81 @@ function setLightingMode(mode) {
       materials.forEach((material) => { material.needsUpdate = true; });
     }
   });
+  updateSunlight();
+  updateSpotlight();
+}
+
+function updateSpotlight() {
+  const output = Number(spotlightOutputRange.value) / 100;
+  const beam = Number(spotlightBeamRange.value);
+  spotlightOutput.value = `${Math.round(output * 100)}%`;
+  spotlightBeam.value = `${beam}°`;
+  spotlights.forEach((spot) => {
+    spot.light.intensity = spotlightsOn ? 170 * output : 0;
+    spot.light.angle = THREE.MathUtils.degToRad(beam / 2);
+    spot.light.visible = spotlightsOn;
+    spot.glow.emissiveIntensity = spotlightsOn ? .75 + output * 1.65 : 0;
+    spot.led.visible = spotlightsOn;
+    spot.light.shadow.needsUpdate = true;
+  });
+}
+
+function refreshSpotlightCount() {
+  spotlightCount.textContent = `${spotlights.length} ${spotlights.length === 1 ? 'SPOT' : 'SPOTS'}`;
+  updateSpotlight();
+}
+
+function setSpotlightEditMode(mode = '') {
+  spotlightEditMode = mode;
+  spotlightPlace.classList.toggle('armed', mode === 'place');
+  if (mode) {
+    if (measureMode) setMeasureMode(false);
+    controls.enabled = false;
+    document.body.classList.add('placing-light');
+    spotlightInstruction.textContent = 'Tap the ceiling repeatedly to add lights. Press Add lights again when finished.';
+  } else {
+    controls.enabled = true;
+    document.body.classList.remove('placing-light');
+    spotlightInstruction.textContent = 'Press Add lights, then tap the ceiling repeatedly.';
+  }
+}
+
+function setSpotlightPanel(open) {
+  spotlightPanel.hidden = !open;
+  spotlightTool.classList.toggle('active', open);
+  if (!open) setSpotlightEditMode();
+}
+
+function setSpotlightPositionFromPoint(point, spot) {
+  if (!modelBox) return;
+  if (!spot) return;
+  const size = modelBox.getSize(new THREE.Vector3());
+  // Use the actual visible ceiling underside instead of the model's global
+  // maximum height, which may be a roof, façade or other upper-floor object.
+  spot.fixture.position.set(point.x, point.y - .006, point.z);
+  spot.light.position.copy(spot.fixture.position).add(new THREE.Vector3(0, -.018, 0));
+  spot.light.target.position.set(point.x, modelBox.min.y + size.y * .12, point.z);
+  spot.light.target.updateMatrixWorld();
+  updateSpotlight();
+}
+
+function pickModelPoint(event) {
+  if (!currentModel) return null;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  return raycaster.intersectObject(currentModel, true)[0]?.point ?? null;
+}
+
+function applySpotlightPick(event) {
+  const point = pickModelPoint(event);
+  if (!point) return;
+  if (spotlightEditMode === 'place') {
+    const spot = createSpotlight();
+    setSpotlightPositionFromPoint(point, spot);
+    refreshSpotlightCount();
+  }
 }
 
 const controls = new OrbitControls(camera, renderer.domElement);
@@ -97,6 +210,38 @@ const grid = new THREE.GridHelper(20, 20, 0x344050, 0x202733);
 scene.add(grid);
 const measurementGroup = new THREE.Group();
 scene.add(measurementGroup);
+
+// Multiple lightweight WebGL fixtures, shaped as a 10 mm silver trim ring
+// with a white luminous centre. Only the selected light casts a shadow, which
+// keeps the system responsive on iPad when several spots are added.
+const spotlights = [];
+let spotlightsOn = true;
+let spotlightEditMode = '';
+let spotlightPointer;
+
+function createSpotlight() {
+  const fixture = new THREE.Group();
+  const silver = new THREE.MeshStandardMaterial({ color: 0xd5d8d6, roughness: .18, metalness: .82 });
+  const glow = new THREE.MeshStandardMaterial({ color: 0xffffff, emissive: 0xfff8e8, emissiveIntensity: 1.6, roughness: .2 });
+  const ring = new THREE.Mesh(new THREE.CylinderGeometry(.075, .075, .01, 28, 1, true), silver);
+  ring.position.y = -.005;
+  const trim = new THREE.Mesh(new THREE.TorusGeometry(.065, .01, 10, 32), silver);
+  trim.rotation.x = Math.PI / 2; trim.position.y = -.011;
+  const led = new THREE.Mesh(new THREE.CircleGeometry(.054, 28), glow);
+  led.rotation.x = -Math.PI / 2; led.position.y = -.012;
+  fixture.add(ring, trim, led);
+  scene.add(fixture);
+  const light = new THREE.SpotLight(0xfff8ed, 119, 7, THREE.MathUtils.degToRad(11), .62, 1.6);
+  light.shadow.mapSize.set(1024, 1024);
+  light.shadow.bias = -.00015;
+  light.shadow.normalBias = .018;
+  scene.add(light, light.target);
+  // Limit shadow maps to the first light for predictable mobile performance.
+  light.castShadow = spotlights.length === 0;
+  const spot = { fixture, light, glow, led };
+  spotlights.push(spot);
+  return spot;
+}
 
 const raycaster = new THREE.Raycaster();
 const pointer = new THREE.Vector2();
@@ -187,6 +332,7 @@ function frameModel(model) {
   architecturalLight.shadow.camera.near = .1;
   architecturalLight.shadow.camera.far = Math.max(size.y * 2.5, shadowExtent * 2);
   architecturalLight.shadow.camera.updateProjectionMatrix();
+  updateSunlight();
   moveToNamedView('entrance', false);
 }
 
@@ -377,6 +523,18 @@ sectionButton.addEventListener('click', () => setSection(sectionPanel.hidden));
 document.querySelector('#close-section').addEventListener('click', () => setSection(false));
 sectionRange.addEventListener('input', updateSection);
 lensRange.addEventListener('input', updateLens);
+sunRange.addEventListener('input', updateSunlight);
+spotlightTool.addEventListener('click', () => setSpotlightPanel(spotlightPanel.hidden));
+closeSpotlight.addEventListener('click', () => setSpotlightPanel(false));
+spotlightToggle.addEventListener('click', () => {
+  spotlightsOn = !spotlightsOn;
+  spotlightToggle.classList.toggle('active', spotlightsOn);
+  spotlightToggle.textContent = spotlightsOn ? 'ALL ON' : 'ALL OFF';
+  updateSpotlight();
+});
+spotlightPlace.addEventListener('click', () => setSpotlightEditMode(spotlightEditMode === 'place' ? '' : 'place'));
+spotlightOutputRange.addEventListener('input', updateSpotlight);
+spotlightBeamRange.addEventListener('input', updateSpotlight);
 fullscreenButton.addEventListener('click', async () => {
   if (document.fullscreenElement) await document.exitFullscreen();
   else await document.documentElement.requestFullscreen();
@@ -432,12 +590,19 @@ window.addEventListener('resize', () => {
 
 renderer.domElement.addEventListener('pointerdown', (event) => {
   if (measureMode) measurementPointer = { x: event.clientX, y: event.clientY };
+  if (spotlightEditMode) spotlightPointer = { x: event.clientX, y: event.clientY };
 });
 window.addEventListener('pointerup', (event) => {
-  if (!measurementPointer) return;
-  const isTap = Math.hypot(event.clientX - measurementPointer.x, event.clientY - measurementPointer.y) < 12;
-  measurementPointer = undefined;
-  if (isTap) addMeasurementPoint(event);
+  if (measurementPointer) {
+    const isTap = Math.hypot(event.clientX - measurementPointer.x, event.clientY - measurementPointer.y) < 12;
+    measurementPointer = undefined;
+    if (isTap) addMeasurementPoint(event);
+  }
+  if (spotlightPointer) {
+    const isTap = Math.hypot(event.clientX - spotlightPointer.x, event.clientY - spotlightPointer.y) < 12;
+    spotlightPointer = undefined;
+    if (isTap) applySpotlightPick(event);
+  }
 });
 
 function updateJoystick(event) {
@@ -539,5 +704,6 @@ fetch('./assets/model.glb', { method: 'HEAD' }).then((response) => {
 }).catch(() => {});
 
 updateLens();
+updateSpotlight();
 setNavigationMode('walk');
 setLightingMode('enhanced');
