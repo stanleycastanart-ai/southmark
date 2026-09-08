@@ -79,6 +79,8 @@ let navigationMode = 'orbit';
 let measureMode = false;
 let measurementPoints = [];
 let measurementPointer;
+let touchMovePointer;
+const touchMoveEyeHeight = 1.5;
 
 function updateLens() {
   const focalLength = Number(lensRange.value);
@@ -171,14 +173,36 @@ function setNavigationMode(mode) {
   if (measureMode) setMeasureMode(false);
   navigationMode = mode;
   const touchMove = mode === 'touch-move';
-  controls.mouseButtons.LEFT = touchMove ? THREE.MOUSE.PAN : THREE.MOUSE.ROTATE;
-  controls.mouseButtons.RIGHT = touchMove ? THREE.MOUSE.ROTATE : THREE.MOUSE.PAN;
-  controls.touches.ONE = touchMove ? THREE.TOUCH.PAN : THREE.TOUCH.ROTATE;
+  controls.enabled = true;
+  controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
+  controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
+  controls.touches.ONE = THREE.TOUCH.ROTATE;
   controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
-  controls.screenSpacePanning = !touchMove;
+  controls.screenSpacePanning = true;
   modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
   document.body.classList.toggle('touch-moving', touchMove);
-  gestureCopy.textContent = touchMove ? 'Drag to move viewpoint' : 'Drag to orbit';
+  gestureCopy.textContent = touchMove ? 'Tap a point to move' : 'Drag to orbit';
+}
+
+function moveToTouchedPoint(event) {
+  if (navigationMode !== 'touch-move' || !currentModel || !modelBox) return;
+  const rect = renderer.domElement.getBoundingClientRect();
+  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+  raycaster.setFromCamera(pointer, camera);
+  const hit = raycaster.intersectObject(currentModel, true)[0];
+  if (!hit) return;
+  const normal = hit.face?.normal.clone().transformDirection(hit.object.matrixWorld) ?? new THREE.Vector3();
+  const towardsCamera = camera.position.clone().sub(hit.point);
+  if (normal.dot(towardsCamera) < 0) normal.negate();
+  normal.y = 0;
+  if (normal.lengthSq() < .05) camera.getWorldDirection(normal).multiplyScalar(-1);
+  normal.normalize();
+  const targetPosition = hit.point.clone().addScaledVector(normal, .9);
+  targetPosition.y = modelBox.min.y + touchMoveEyeHeight;
+  const targetLook = hit.point.clone();
+  targetLook.y = targetPosition.y;
+  transition = { start: performance.now(), duration: 900, fromPosition: camera.position.clone(), fromTarget: controls.target.clone(), toPosition: targetPosition, toTarget: targetLook };
 }
 
 function clearMeasurement() {
@@ -186,6 +210,9 @@ function clearMeasurement() {
   measurementGroup.clear();
   measurementResult.textContent = '';
   measurementCopy.textContent = 'Tap the first point';
+  measurementPanel.classList.remove('on-line');
+  measurementPanel.style.removeProperty('left');
+  measurementPanel.style.removeProperty('top');
 }
 
 function setMeasureMode(enabled) {
@@ -224,6 +251,16 @@ function addMeasurementPoint(event) {
   const distanceMm = measurementPoints[0].distanceTo(measurementPoints[1]) * 1000;
   measurementCopy.textContent = 'Distance';
   measurementResult.textContent = `${Math.round(distanceMm).toLocaleString()} mm`;
+  measurementPanel.classList.add('on-line');
+}
+
+function updateMeasurementLabelPosition() {
+  if (measurementPoints.length !== 2 || measurementPanel.hidden) return;
+  const midpoint = measurementPoints[0].clone().lerp(measurementPoints[1], .5).project(camera);
+  const x = (midpoint.x * .5 + .5) * innerWidth;
+  const y = (-midpoint.y * .5 + .5) * innerHeight;
+  measurementPanel.style.left = `${x}px`;
+  measurementPanel.style.top = `${Math.max(44, y - 18)}px`;
 }
 
 
@@ -338,10 +375,15 @@ window.addEventListener('resize', () => {
 
 renderer.domElement.addEventListener('pointerdown', (event) => {
   if (measureMode) measurementPointer = { x: event.clientX, y: event.clientY };
-  if (navigationMode === 'touch-move') document.body.classList.add('pointer-dragging');
+  if (navigationMode === 'touch-move') { touchMovePointer = { x: event.clientX, y: event.clientY }; document.body.classList.add('pointer-dragging'); }
 });
 window.addEventListener('pointerup', (event) => {
   document.body.classList.remove('pointer-dragging');
+  if (touchMovePointer) {
+    const isTap = Math.hypot(event.clientX - touchMovePointer.x, event.clientY - touchMovePointer.y) < 12;
+    touchMovePointer = undefined;
+    if (isTap) moveToTouchedPoint(event);
+  }
   if (!measurementPointer) return;
   const isTap = Math.hypot(event.clientX - measurementPointer.x, event.clientY - measurementPointer.y) < 12;
   measurementPointer = undefined;
@@ -356,6 +398,7 @@ renderer.setAnimationLoop(() => {
     if (progress === 1) transition = undefined;
   }
   controls.update();
+  updateMeasurementLabelPosition();
   renderer.render(scene, camera);
 });
 
