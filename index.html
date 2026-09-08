@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="theme-color" content="#111827" />
   <title>WING HAN GROUP DESIGN · 3D Viewer</title>
-    <link rel="stylesheet" href="./styles-v02.css?v=phone-1" />
+    <link rel="stylesheet" href="./styles-v02.css?v=controls-8" />
     <script type="importmap">
       {
         "imports": {
@@ -34,10 +34,7 @@
 
     <aside class="mode-rail" aria-label="Viewer tools">
       <button type="button" class="rail-button active" data-mode="orbit"><span>◌</span>Orbit</button>
-      <button type="button" class="rail-button" data-mode="touch-move"><span>✥</span>Touch Move</button>
-      <button type="button" class="rail-button" id="measure-mode"><span>⌑</span>Measure</button>
-      <button type="button" class="rail-button" id="top-view"><span>⌁</span>Top</button>
-      <button type="button" class="rail-button" id="section-view"><span>⊟</span>Section</button>
+      <button type="button" class="rail-button" data-mode="walk"><span>✥</span>Walk</button>
     </aside>
 
     <section id="welcome" class="panel">
@@ -64,27 +61,33 @@
       <div><span>CAMERA LENS</span><output id="lens-readout">28 mm</output></div>
       <input id="lens-range" type="range" min="15" max="50" value="28" step="1" aria-label="Camera lens from 15 to 50 millimetres" />
     </section>
+    <div id="walk-joystick" class="walk-joystick" hidden aria-label="Walking joystick">
+      <div class="joystick-ring"><span class="joystick-knob"></span></div>
+      <small>Move</small>
+    </div>
     <nav class="presentation-controls" aria-label="Presentation controls">
       <div class="view-picker" role="group" aria-label="Camera views">
-        <button type="button" class="view-button" data-view="entrance">Entrance</button>
-        <button type="button" class="view-button active" data-view="overview">Overview</button>
-        <button type="button" class="view-button" data-view="front">Front</button>
-        <button type="button" class="view-button" data-view="side">Side</button>
+        <button type="button" class="view-button" data-view="entrance">View 1</button>
+        <button type="button" class="view-button" data-view="tree-a">View 2</button>
+        <button type="button" class="view-button" data-view="tree-b">View 3</button>
       </div>
       <div class="utility-controls">
-        <button type="button" class="icon-button text-icon" id="set-entrance" aria-label="Set current view as entrance" title="Set current view as entrance">⌂</button>
-        <button type="button" class="icon-button text-icon" id="save-view" aria-label="Save current camera view" title="Save view">＋</button>
-        <button type="button" class="icon-button text-icon" id="auto-tour" aria-label="Start auto tour" title="Auto tour">▷</button>
+        <button type="button" class="icon-button bottom-tool" id="measure-mode" aria-label="Measure" title="Measure"><span>⌑</span><small>Measure</small></button>
+        <button type="button" class="icon-button bottom-tool" id="top-view" aria-label="Top view" title="Top view"><span>⌁</span><small>Top</small></button>
+        <button type="button" class="icon-button bottom-tool" id="section-view" aria-label="Section" title="Section"><span>⊟</span><small>Section</small></button>
+        <button type="button" class="icon-button text-icon" id="set-entrance" aria-label="Set current view as entrance" title="Set current view as entrance"><span>⌂</span><small>Set View</small></button>
+        <button type="button" class="icon-button text-icon" id="save-view" aria-label="Save current camera view" title="Save view"><span>＋</span><small>Save</small></button>
+        <button type="button" class="icon-button text-icon" id="auto-tour" aria-label="Start auto tour" title="Auto tour"><span>▷</span><small>Tour</small></button>
         <button type="button" class="icon-button" id="reset-view" aria-label="Reset camera" title="Reset camera">
-          <span aria-hidden="true">↺</span>
+          <span aria-hidden="true">↺</span><small>Reset</small>
         </button>
         <button type="button" class="icon-button" id="fullscreen" aria-label="Enter fullscreen" title="Fullscreen">
-          <span aria-hidden="true">⛶</span>
+          <span aria-hidden="true">⛶</span><small>Full</small>
         </button>
       </div>
     </nav>
     <div class="gesture-hint" id="gesture-hint"><span class="gesture-icon">⌁</span><span id="gesture-copy">Drag to orbit</span><i></i> Pinch to zoom</div>
 
-  <script type="module" src="./viewer-v02.js?v=mode-fix-1"></script>
+  <script type="module" src="./viewer-v02.js?v=controls-8"></script>
   </body>
 </html>
