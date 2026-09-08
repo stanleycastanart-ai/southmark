@@ -8,7 +8,6 @@ const container = document.querySelector('#viewer');
 const input = document.querySelector('#model-input');
 const loading = document.querySelector('#loading');
 const errorBox = document.querySelector('#error');
-const resetButton = document.querySelector('#reset-view');
 const fullscreenButton = document.querySelector('#fullscreen');
 const viewButtons = [...document.querySelectorAll('.view-button')];
 const modeButtons = [...document.querySelectorAll('[data-mode]')];
@@ -24,9 +23,6 @@ const measurementResult = document.querySelector('#measurement-result');
 const gestureCopy = document.querySelector('#gesture-copy');
 const lensRange = document.querySelector('#lens-range');
 const lensReadout = document.querySelector('#lens-readout');
-const saveViewButton = document.querySelector('#save-view');
-const setEntranceButton = document.querySelector('#set-entrance');
-const tourButton = document.querySelector('#auto-tour');
 const joystick = document.querySelector('#walk-joystick');
 const joystickRing = joystick.querySelector('.joystick-ring');
 const joystickKnob = joystick.querySelector('.joystick-knob');
@@ -77,8 +73,7 @@ let transition;
 let modelBox;
 let savedViews = JSON.parse(localStorage.getItem('stanspace-saved-views') || '[]');
 let entranceView = JSON.parse(localStorage.getItem('stanspace-entrance-view') || 'null');
-let tourTimer;
-let navigationMode = 'orbit';
+let navigationMode = 'walk';
 let measureMode = false;
 let measurementPoints = [];
 let measurementPointer;
@@ -303,47 +298,14 @@ function updateSection() {
   sectionReadout.value = `${Math.round((y - modelBox.min.y) * 1000)} mm`;
 }
 
-function saveCurrentView() {
-  const view = { position: camera.position.toArray(), target: controls.target.toArray(), name: `View ${savedViews.length + 1}` };
-  savedViews = [...savedViews.slice(-5), view];
-  localStorage.setItem('stanspace-saved-views', JSON.stringify(savedViews));
-  saveViewButton.querySelector('span').textContent = '✓';
-  setTimeout(() => { saveViewButton.querySelector('span').textContent = '＋'; }, 1100);
-}
-
-function saveEntranceView() {
-  entranceView = { position: camera.position.toArray(), target: controls.target.toArray() };
-  localStorage.setItem('stanspace-entrance-view', JSON.stringify(entranceView));
-  setActiveView('entrance');
-  setEntranceButton.querySelector('span').textContent = '✓';
-  setTimeout(() => { setEntranceButton.querySelector('span').textContent = '⌂'; }, 1100);
-}
-
-function startAutoTour() {
-  const routes = savedViews.length ? savedViews : ['overview', 'front', 'side'];
-  let index = 0;
-  clearInterval(tourTimer);
-  tourButton.querySelector('span').textContent = 'Ⅱ';
-  const next = () => {
-    const route = routes[index++ % routes.length];
-    if (typeof route === 'string') moveToView(route);
-    else transition = { start: performance.now(), duration: 1100, fromPosition: camera.position.clone(), fromTarget: controls.target.clone(), toPosition: new THREE.Vector3().fromArray(route.position), toTarget: new THREE.Vector3().fromArray(route.target) };
-  };
-  next(); tourTimer = setInterval(next, 4200);
-}
-
 viewButtons.forEach((button) => button.addEventListener('click', () => moveToNamedView(button.dataset.view)));
 modeButtons.forEach((button) => button.addEventListener('click', () => setNavigationMode(button.dataset.mode)));
 measureButton.addEventListener('click', () => setMeasureMode(!measureMode));
-resetButton.addEventListener('click', () => moveToView('overview'));
 topButton.addEventListener('click', moveToTopView);
 sectionButton.addEventListener('click', () => setSection(sectionPanel.hidden));
 document.querySelector('#close-section').addEventListener('click', () => setSection(false));
 sectionRange.addEventListener('input', updateSection);
-saveViewButton.addEventListener('click', saveCurrentView);
-setEntranceButton.addEventListener('click', saveEntranceView);
 lensRange.addEventListener('input', updateLens);
-tourButton.addEventListener('click', () => { if (tourTimer) { clearInterval(tourTimer); tourTimer = undefined; tourButton.querySelector('span').textContent = '▷'; } else startAutoTour(); });
 fullscreenButton.addEventListener('click', async () => {
   if (document.fullscreenElement) await document.exitFullscreen();
   else await document.documentElement.requestFullscreen();
@@ -500,3 +462,4 @@ fetch('./assets/model.glb', { method: 'HEAD' }).then((response) => {
 }).catch(() => {});
 
 updateLens();
+setNavigationMode('walk');
