@@ -202,7 +202,8 @@ function moveToTouchedPoint(event) {
   targetPosition.y = modelBox.min.y + touchMoveEyeHeight;
   const targetLook = hit.point.clone();
   targetLook.y = targetPosition.y;
-  transition = { start: performance.now(), duration: 900, fromPosition: camera.position.clone(), fromTarget: controls.target.clone(), toPosition: targetPosition, toTarget: targetLook };
+  // A longer, gentle move makes a tap feel like a camera glide rather than a jump.
+  transition = { start: performance.now(), duration: 1800, fromPosition: camera.position.clone(), fromTarget: controls.target.clone(), toPosition: targetPosition, toTarget: targetLook };
 }
 
 function clearMeasurement() {
@@ -216,6 +217,9 @@ function clearMeasurement() {
 }
 
 function setMeasureMode(enabled) {
+  // Measure and Touch Move are separate tools.  A measuring tap must never
+  // also trigger a camera move.
+  if (enabled && navigationMode === 'touch-move') setNavigationMode('orbit');
   measureMode = enabled;
   controls.enabled = !enabled;
   measureButton.classList.toggle('active', enabled);
@@ -392,7 +396,8 @@ window.addEventListener('pointerup', (event) => {
 renderer.setAnimationLoop(() => {
   if (transition) {
     const progress = Math.min((performance.now() - transition.start) / transition.duration, 1);
-    const eased = 1 - (1 - progress) ** 3;
+    // Smooth acceleration and deceleration for Touch Move and camera presets.
+    const eased = progress * progress * (3 - 2 * progress);
     camera.position.lerpVectors(transition.fromPosition, transition.toPosition, eased);
     controls.target.lerpVectors(transition.fromTarget, transition.toTarget, eased);
     if (progress === 1) transition = undefined;
