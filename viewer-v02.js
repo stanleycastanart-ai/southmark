@@ -27,6 +27,9 @@ const lensReadout = document.querySelector('#lens-readout');
 const saveViewButton = document.querySelector('#save-view');
 const setEntranceButton = document.querySelector('#set-entrance');
 const tourButton = document.querySelector('#auto-tour');
+const joystick = document.querySelector('#walk-joystick');
+const joystickRing = joystick.querySelector('.joystick-ring');
+const joystickKnob = joystick.querySelector('.joystick-knob');
 
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x0b0f17);
@@ -79,8 +82,13 @@ let navigationMode = 'orbit';
 let measureMode = false;
 let measurementPoints = [];
 let measurementPointer;
-let touchMovePointer;
-const touchMoveEyeHeight = 1.5;
+let joystickPointerId;
+const joystickInput = new THREE.Vector2();
+const keyboardInput = new THREE.Vector2();
+const pressedKeys = new Set();
+const walkEyeHeight = 1.5;
+const walkSpeed = 2.1;
+let previousFrameTime = performance.now();
 
 function updateLens() {
   const focalLength = Number(lensRange.value);
@@ -114,7 +122,7 @@ function frameModel(model) {
   grid.scale.setScalar(Math.max(sphere.radius / 8, 1));
   currentSphere = sphere.clone();
   modelBox = box.clone();
-  if (entranceView) applyEntrance(false);
+  moveToNamedView('entrance', false);
 }
 
 function setActiveView(name) {
@@ -161,6 +169,34 @@ function moveToView(name = 'overview') {
   setActiveView(name);
 }
 
+function namedWalkView(name) {
+  if (!modelBox) return;
+  const size = modelBox.getSize(new THREE.Vector3());
+  const min = modelBox.min;
+  const center = modelBox.getCenter(new THREE.Vector3());
+  const point = (x, z) => new THREE.Vector3(min.x + size.x * x, min.y + walkEyeHeight, min.z + size.z * z);
+  const views = {
+    // Locations 1–5 follow the marked top-view plan supplied for Southmark.
+    entrance: { position: point(.74, .66), target: point(.72, .78) },
+    'tree-a': { position: point(.83, .84), target: point(.72, .76) },
+    'tree-b': { position: point(.65, .86), target: point(.72, .76) },
+    meeting: { position: point(.51, .81), target: point(.58, .77) },
+    corridor: { position: point(.67, .67), target: point(.72, .78) },
+  };
+  return views[name] ?? { position: center.clone().setY(min.y + walkEyeHeight), target: center };
+}
+
+function moveToNamedView(name, animate = true) {
+  const view = namedWalkView(name);
+  if (!view) return;
+  if (animate) {
+    transition = { start: performance.now(), duration: 1050, fromPosition: camera.position.clone(), fromTarget: controls.target.clone(), toPosition: view.position, toTarget: view.target };
+  } else {
+    camera.position.copy(view.position); controls.target.copy(view.target); controls.update();
+  }
+  setActiveView(name);
+}
+
 function moveToTopView() {
   if (!currentSphere) return;
   const { center, radius } = currentSphere;
@@ -172,7 +208,7 @@ function moveToTopView() {
 function setNavigationMode(mode) {
   if (measureMode) setMeasureMode(false);
   navigationMode = mode;
-  const touchMove = mode === 'touch-move';
+  const walk = mode === 'walk';
   controls.enabled = true;
   controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
   controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
@@ -180,30 +216,9 @@ function setNavigationMode(mode) {
   controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
   controls.screenSpacePanning = true;
   modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
-  document.body.classList.toggle('touch-moving', touchMove);
-  gestureCopy.textContent = touchMove ? 'Tap a point to move' : 'Drag to orbit';
-}
-
-function moveToTouchedPoint(event) {
-  if (navigationMode !== 'touch-move' || !currentModel || !modelBox) return;
-  const rect = renderer.domElement.getBoundingClientRect();
-  pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-  pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-  raycaster.setFromCamera(pointer, camera);
-  const hit = raycaster.intersectObject(currentModel, true)[0];
-  if (!hit) return;
-  const normal = hit.face?.normal.clone().transformDirection(hit.object.matrixWorld) ?? new THREE.Vector3();
-  const towardsCamera = camera.position.clone().sub(hit.point);
-  if (normal.dot(towardsCamera) < 0) normal.negate();
-  normal.y = 0;
-  if (normal.lengthSq() < .05) camera.getWorldDirection(normal).multiplyScalar(-1);
-  normal.normalize();
-  const targetPosition = hit.point.clone().addScaledVector(normal, .9);
-  targetPosition.y = modelBox.min.y + touchMoveEyeHeight;
-  const targetLook = hit.point.clone();
-  targetLook.y = targetPosition.y;
-  // A longer, gentle move makes a tap feel like a camera glide rather than a jump.
-  transition = { start: performance.now(), duration: 1800, fromPosition: camera.position.clone(), fromTarget: controls.target.clone(), toPosition: targetPosition, toTarget: targetLook };
+  joystick.hidden = !walk;
+  document.body.classList.toggle('walking', walk);
+  gestureCopy.textContent = walk ? 'Use the joystick to walk · Drag to look' : 'Drag to orbit';
 }
 
 function clearMeasurement() {
@@ -219,7 +234,7 @@ function clearMeasurement() {
 function setMeasureMode(enabled) {
   // Measure and Touch Move are separate tools.  A measuring tap must never
   // also trigger a camera move.
-  if (enabled && navigationMode === 'touch-move') setNavigationMode('orbit');
+  if (enabled && navigationMode === 'walk') setNavigationMode('orbit');
   measureMode = enabled;
   controls.enabled = !enabled;
   measureButton.classList.toggle('active', enabled);
@@ -292,24 +307,23 @@ function saveCurrentView() {
   const view = { position: camera.position.toArray(), target: controls.target.toArray(), name: `View ${savedViews.length + 1}` };
   savedViews = [...savedViews.slice(-5), view];
   localStorage.setItem('stanspace-saved-views', JSON.stringify(savedViews));
-  saveViewButton.querySelector('span')?.replaceWith(document.createTextNode('✓'));
-  saveViewButton.textContent = '✓';
-  setTimeout(() => { saveViewButton.textContent = '＋'; }, 1100);
+  saveViewButton.querySelector('span').textContent = '✓';
+  setTimeout(() => { saveViewButton.querySelector('span').textContent = '＋'; }, 1100);
 }
 
 function saveEntranceView() {
   entranceView = { position: camera.position.toArray(), target: controls.target.toArray() };
   localStorage.setItem('stanspace-entrance-view', JSON.stringify(entranceView));
   setActiveView('entrance');
-  setEntranceButton.textContent = '✓';
-  setTimeout(() => { setEntranceButton.textContent = '⌂'; }, 1100);
+  setEntranceButton.querySelector('span').textContent = '✓';
+  setTimeout(() => { setEntranceButton.querySelector('span').textContent = '⌂'; }, 1100);
 }
 
 function startAutoTour() {
   const routes = savedViews.length ? savedViews : ['overview', 'front', 'side'];
   let index = 0;
   clearInterval(tourTimer);
-  tourButton.textContent = 'Ⅱ';
+  tourButton.querySelector('span').textContent = 'Ⅱ';
   const next = () => {
     const route = routes[index++ % routes.length];
     if (typeof route === 'string') moveToView(route);
@@ -318,7 +332,7 @@ function startAutoTour() {
   next(); tourTimer = setInterval(next, 4200);
 }
 
-viewButtons.forEach((button) => button.addEventListener('click', () => moveToView(button.dataset.view)));
+viewButtons.forEach((button) => button.addEventListener('click', () => moveToNamedView(button.dataset.view)));
 modeButtons.forEach((button) => button.addEventListener('click', () => setNavigationMode(button.dataset.mode)));
 measureButton.addEventListener('click', () => setMeasureMode(!measureMode));
 resetButton.addEventListener('click', () => moveToView('overview'));
@@ -329,7 +343,7 @@ sectionRange.addEventListener('input', updateSection);
 saveViewButton.addEventListener('click', saveCurrentView);
 setEntranceButton.addEventListener('click', saveEntranceView);
 lensRange.addEventListener('input', updateLens);
-tourButton.addEventListener('click', () => { if (tourTimer) { clearInterval(tourTimer); tourTimer = undefined; tourButton.textContent = '▷'; } else startAutoTour(); });
+tourButton.addEventListener('click', () => { if (tourTimer) { clearInterval(tourTimer); tourTimer = undefined; tourButton.querySelector('span').textContent = '▷'; } else startAutoTour(); });
 fullscreenButton.addEventListener('click', async () => {
   if (document.fullscreenElement) await document.exitFullscreen();
   else await document.documentElement.requestFullscreen();
@@ -379,21 +393,94 @@ window.addEventListener('resize', () => {
 
 renderer.domElement.addEventListener('pointerdown', (event) => {
   if (measureMode) measurementPointer = { x: event.clientX, y: event.clientY };
-  if (navigationMode === 'touch-move') { touchMovePointer = { x: event.clientX, y: event.clientY }; document.body.classList.add('pointer-dragging'); }
 });
 window.addEventListener('pointerup', (event) => {
-  document.body.classList.remove('pointer-dragging');
-  if (touchMovePointer) {
-    const isTap = Math.hypot(event.clientX - touchMovePointer.x, event.clientY - touchMovePointer.y) < 12;
-    touchMovePointer = undefined;
-    if (isTap) moveToTouchedPoint(event);
-  }
   if (!measurementPointer) return;
   const isTap = Math.hypot(event.clientX - measurementPointer.x, event.clientY - measurementPointer.y) < 12;
   measurementPointer = undefined;
   if (isTap) addMeasurementPoint(event);
 });
+
+function updateJoystick(event) {
+  const rect = joystickRing.getBoundingClientRect();
+  const radius = rect.width * .5;
+  const dx = event.clientX - (rect.left + radius);
+  const dy = event.clientY - (rect.top + radius);
+  const distance = Math.min(Math.hypot(dx, dy), radius * .62);
+  const angle = Math.atan2(dy, dx);
+  const x = Math.cos(angle) * distance;
+  const y = Math.sin(angle) * distance;
+  joystickInput.set(x / (radius * .62), y / (radius * .62));
+  joystickKnob.style.transform = `translate(calc(-50% + ${x}px), calc(-50% + ${y}px))`;
+}
+
+function releaseJoystick(event) {
+  if (event.pointerId !== joystickPointerId) return;
+  joystickPointerId = undefined;
+  joystickInput.set(0, 0);
+  joystickKnob.style.transform = 'translate(-50%, -50%)';
+}
+
+joystickRing.addEventListener('pointerdown', (event) => {
+  if (navigationMode !== 'walk') return;
+  joystickPointerId = event.pointerId;
+  joystickRing.setPointerCapture(event.pointerId);
+  updateJoystick(event);
+});
+joystickRing.addEventListener('pointermove', (event) => { if (event.pointerId === joystickPointerId) updateJoystick(event); });
+joystickRing.addEventListener('pointerup', releaseJoystick);
+joystickRing.addEventListener('pointercancel', releaseJoystick);
+
+function keepWalkInside(position) {
+  if (!modelBox) return position;
+  const padding = Math.max(.22, Math.min(modelBox.getSize(new THREE.Vector3()).x, modelBox.getSize(new THREE.Vector3()).z) * .025);
+  position.x = THREE.MathUtils.clamp(position.x, modelBox.min.x + padding, modelBox.max.x - padding);
+  position.z = THREE.MathUtils.clamp(position.z, modelBox.min.z + padding, modelBox.max.z - padding);
+  // A small protected central core.  Interior partitions remain passable so the tour stays easy.
+  const center = modelBox.getCenter(new THREE.Vector3());
+  const size = modelBox.getSize(new THREE.Vector3());
+  const coreHalfX = size.x * .07;
+  const coreHalfZ = size.z * .12;
+  if (Math.abs(position.x - center.x) < coreHalfX && Math.abs(position.z - center.z) < coreHalfZ) {
+    position.x = center.x + Math.sign(position.x - center.x || 1) * coreHalfX;
+  }
+  return position;
+}
+
+function walk(deltaSeconds) {
+  keyboardInput.set(
+    (pressedKeys.has('KeyD') ? 1 : 0) - (pressedKeys.has('KeyA') ? 1 : 0),
+    (pressedKeys.has('KeyS') ? 1 : 0) - (pressedKeys.has('KeyW') ? 1 : 0),
+  );
+  const input = joystickInput.clone().add(keyboardInput);
+  if (navigationMode !== 'walk' || input.lengthSq() < .002 || !modelBox) return;
+  const forward = new THREE.Vector3();
+  camera.getWorldDirection(forward); forward.y = 0;
+  if (forward.lengthSq() < .001) return;
+  forward.normalize();
+  const right = new THREE.Vector3(-forward.z, 0, forward.x);
+  const movement = forward.multiplyScalar(-input.y).addScaledVector(right, input.x);
+  if (movement.lengthSq() < .001) return;
+  movement.normalize().multiplyScalar(walkSpeed * deltaSeconds * Math.min(1, input.length()));
+  const next = keepWalkInside(camera.position.clone().add(movement));
+  const applied = next.clone().sub(camera.position);
+  camera.position.copy(next);
+  controls.target.add(applied);
+}
+
+window.addEventListener('keydown', (event) => {
+  if (['KeyW', 'KeyA', 'KeyS', 'KeyD'].includes(event.code)) {
+    pressedKeys.add(event.code);
+    if (navigationMode === 'walk') event.preventDefault();
+  }
+});
+window.addEventListener('keyup', (event) => pressedKeys.delete(event.code));
+window.addEventListener('blur', () => pressedKeys.clear());
+
 renderer.setAnimationLoop(() => {
+  const now = performance.now();
+  const deltaSeconds = Math.min((now - previousFrameTime) / 1000, .05);
+  previousFrameTime = now;
   if (transition) {
     const progress = Math.min((performance.now() - transition.start) / transition.duration, 1);
     // Smooth acceleration and deceleration for Touch Move and camera presets.
@@ -402,6 +489,7 @@ renderer.setAnimationLoop(() => {
     controls.target.lerpVectors(transition.fromTarget, transition.toTarget, eased);
     if (progress === 1) transition = undefined;
   }
+  walk(deltaSeconds);
   controls.update();
   updateMeasurementLabelPosition();
   renderer.render(scene, camera);
