@@ -1,32 +1,108 @@
 <!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#f3f4f2">
-  <title>WING HAN GROUP · 3D INTERIOR VIEWER</title><link rel="stylesheet" href="./styles.css?v=wing-han-ui-01">
-  <script type="importmap">{"imports":{"three":"https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js","three/addons/":"https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"}}</script>
-</head>
-<body>
-  <main id="viewer" aria-label="Interactive 3D interior viewer"></main>
-  <header class="topbar">
-    <a class="brand" href="#" aria-label="WING HAN GROUP 3D Interior Viewer"><span class="brand-mark">WH</span><span class="brand-copy"><strong>WING HAN GROUP</strong><small>3D INTERIOR VIEWER</small></span></a>
-    <div class="project-meta"><span class="status-dot"></span><span>PLACEHOLDER SCENE</span><b>UNTITLED PROJECT</b></div>
-  </header>
-  <section class="scene-note"><span>INSIDE THE PROJECT</span><strong>Southmark 23F</strong><small>Office interior · Placeholder model</small></section>
-  <aside id="context-panel" class="context-panel" aria-live="polite"><div class="panel-heading"><div><span id="panel-kicker">THE SPACE</span><h2 id="panel-title">Explore the interior.</h2></div><button id="close-panel" aria-label="Close panel">×</button></div><div id="panel-content"><div class="mode-tabs"><button class="active">Interactive 3D</button><button>Render views</button></div><div class="panel-list"><button class="panel-option active" data-view="perspective"><small>01</small><b>Whole studio</b><i>↗</i></button><button class="panel-option" data-view="entrance"><small>02</small><b>Entrance</b><i>↗</i></button><button class="panel-option" data-view="top"><small>03</small><b>Floor plan</b><i>↗</i></button></div><div class="project-stats"><div><strong>1,580</strong><small>sq ft · Workspace</small></div><div><strong>3</strong><small>Saved views</small></div><div><strong>3.4</strong><small>m · Ceiling</small></div></div><p class="panel-footnote">Simple placeholder geometry for reviewing the platform interface. The new SketchUp GLB will replace it later.</p></div></aside>
-  <div id="walk-control" class="walk-control" hidden><div class="joystick" id="joystick"><span id="joystick-knob"></span></div><small>MOVE</small></div>
-  <div id="measure-status" class="measure-status" hidden>Tap two surfaces to measure</div>
-  <nav class="toolbar-shell" aria-label="Viewer tools"><div class="toolbar">
-    <button class="tool active" data-tool="orbit" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M4 12a8 8 0 0 0 13.7 5.6M20 12A8 8 0 0 0 6.3 6.4M17.7 17.6H14m3.7 0v-3.7M6.3 6.4H10m-3.7 0v3.7"/></svg><span>ORBIT</span></button>
-    <button class="tool" data-tool="walk"><svg viewBox="0 0 24 24"><circle cx="12" cy="5" r="2"/><path d="m10 22 1-7-3-3 2-4 4 1 2 3 3 1M11 15l4 2 1 5"/></svg><span>WALK</span></button>
-    <button class="tool" data-tool="views"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-5 9-5 9 5 9 5-3.5 5-9 5-9-5-9-5Z"/><circle cx="12" cy="12" r="2.5"/></svg><span>VIEWS</span></button>
-    <button class="tool" data-tool="measure"><svg viewBox="0 0 24 24"><path d="m5 19 14-14M7 5l12 12M4 16l4 4M14 4l6 6"/></svg><span>MEASURE</span></button>
-    <button class="tool" data-tool="material"><svg viewBox="0 0 24 24"><path d="m12 3 8 4.5-8 4.5-8-4.5L12 3Z"/><path d="m4 12 8 4.5 8-4.5M4 16.5l8 4.5 8-4.5"/></svg><span>MATERIAL</span></button>
-    <button class="tool" data-tool="light"><svg viewBox="0 0 24 24"><path d="M9 18h6M10 22h4M8.5 14.5a6 6 0 1 1 7 0c-1 .8-1.5 1.5-1.5 3h-4c0-1.5-.5-2.2-1.5-3Z"/></svg><span>LIGHT</span></button>
-    <button class="tool" data-tool="layers"><svg viewBox="0 0 24 24"><path d="m12 3 9 5-9 5-9-5 9-5Z"/><path d="m3 12 9 5 9-5M3 16l9 5 9-5"/></svg><span>LAYERS</span></button>
-    <button class="tool tool-ai" data-tool="ai"><svg viewBox="0 0 24 24"><path d="m12 3 1.2 4.8L18 9l-4.8 1.2L12 15l-1.2-4.8L6 9l4.8-1.2L12 3ZM19 15l.6 2.4L22 18l-2.4.6L19 21l-.6-2.4L16 18l2.4-.6L19 15Z"/></svg><span>AI VISUALIZE</span></button>
-    <button class="tool" id="fullscreen" data-tool="fullscreen"><svg viewBox="0 0 24 24"><path d="M8 3H3v5M16 3h5v5M8 21H3v-5M16 21h5v-5"/></svg><span>FULLSCREEN</span></button>
-  </div></nav>
-  <div class="interaction-hint" id="interaction-hint">Drag to orbit · Pinch or scroll to zoom</div>
-  <script type="module" src="./viewer.js?v=wing-han-ui-01"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#111827" />
+  <title>WING HAN GROUP · 3D INTERIOR VIEWER</title>
+    <link rel="stylesheet" href="./styles-v02.css?v=spotlight-v03" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.180.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.180.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <main id="viewer" aria-label="Interactive 3D viewer"></main>
+
+    <header class="brand">
+      <span class="mark">WH</span>
+      <div>
+      <strong>WING HAN GROUP</strong>
+        <small>3D INTERIOR VIEWER</small>
+      </div>
+    </header>
+
+    <section class="project-label" aria-label="Project information">
+      <span class="live-dot"></span>
+      <span>INTERIOR PRESENTATION</span>
+      <b>SOUTHMARK 23F</b>
+    </section>
+
+    <div class="lighting-compare" role="group" aria-label="Lighting comparison">
+      <button type="button" data-lighting="original">Original</button>
+      <button type="button" class="active" data-lighting="enhanced">Enhanced V2</button>
+    </div>
+
+    <aside class="mode-rail" aria-label="Viewer tools">
+      <button type="button" class="rail-button" data-mode="orbit"><span>◎</span>Orbit</button>
+      <button type="button" class="rail-button active" data-mode="walk"><span>✥</span>Walk</button>
+    </aside>
+
+    <section id="welcome" class="panel">
+      <p class="eyebrow">READY FOR YOUR MODEL</p>
+      <h1>Explore the space</h1>
+      <p>Open a SketchUp-exported GLB file to preview it on this device.</p>
+      <label class="button" for="model-input">Open GLB file</label>
+      <input id="model-input" type="file" accept=".glb,model/gltf-binary" />
+      <p class="hint">On desktop, you can also drop a .glb file anywhere.</p>
+    </section>
+
+    <div id="loading" class="status" hidden>Loading space…</div>
+    <div id="error" class="status error" hidden></div>
+    <section id="section-panel" class="section-panel" hidden>
+      <div><span>SECTION HEIGHT</span><button type="button" id="close-section" aria-label="Close section control">×</button></div>
+      <input id="section-height" type="range" min="0" max="100" value="100" aria-label="Section height" />
+      <output id="section-readout">—</output>
+    </section>
+    <section id="measurement-panel" class="measurement-panel" hidden>
+      <span id="measurement-copy">Tap the first point</span>
+      <strong id="measurement-result"></strong>
+    </section>
+    <section class="camera-control" aria-label="Camera lens control">
+      <div><span>CAMERA LENS</span><output id="lens-readout">28 mm</output></div>
+      <input id="lens-range" type="range" min="15" max="50" value="28" step="1" aria-label="Camera lens from 15 to 50 millimetres" />
+    </section>
+    <section class="sun-control" aria-label="Sunlight time control">
+      <div><span>SUN TIME · HKT</span><output id="sun-readout">11:00</output></div>
+      <input id="sun-range" type="range" min="7" max="19" value="11" step="0.25" aria-label="Sunlight time in Hong Kong time" />
+    </section>
+    <section id="spotlight-panel" class="spotlight-panel" hidden aria-label="LED spotlight controls">
+      <div class="spotlight-heading"><span>LED SPOTLIGHT</span><button type="button" id="close-spotlight" aria-label="Close spotlight controls">×</button></div>
+      <p><b>IES TEST · 485 lm</b><span id="spotlight-count">0 SPOTS</span></p>
+      <div class="spotlight-actions">
+        <button type="button" id="spotlight-toggle" class="active">ALL ON</button>
+        <button type="button" id="spotlight-place">ADD LIGHTS</button>
+      </div>
+      <label>OUTPUT <output id="spotlight-output">70%</output><input id="spotlight-output-range" type="range" min="0" max="100" value="70" step="1" aria-label="Spotlight output" /></label>
+      <label>BEAM ANGLE <output id="spotlight-beam">22°</output><input id="spotlight-beam-range" type="range" min="12" max="45" value="22" step="1" aria-label="Spotlight beam angle" /></label>
+      <small id="spotlight-instruction">Press Add lights, then tap the ceiling repeatedly.</small>
+    </section>
+    <div id="walk-joystick" class="walk-joystick" aria-label="Walking joystick">
+      <div class="joystick-ring"><span class="joystick-knob"></span></div>
+      <small>Move</small>
+    </div>
+    <nav class="presentation-controls" aria-label="Presentation controls">
+      <div class="view-picker" role="group" aria-label="Camera views">
+        <button type="button" class="view-button" data-view="entrance">Back to Foyer</button>
+        <button type="button" class="view-button" data-view="tree-a">View 2</button>
+        <button type="button" class="view-button" data-view="tree-b">View 3</button>
+      </div>
+      <div class="utility-controls">
+        <button type="button" class="icon-button bottom-tool" id="measure-mode" aria-label="Measure" title="Measure"><span>⌑</span><small>Measure</small></button>
+        <button type="button" class="icon-button bottom-tool" id="top-view" aria-label="Top view" title="Top view"><span>⌁</span><small>Top</small></button>
+        <button type="button" class="icon-button bottom-tool" id="section-view" aria-label="Section" title="Section"><span>⊟</span><small>Section</small></button>
+        <button type="button" class="icon-button bottom-tool" id="spotlight-tool" aria-label="LED spotlight" title="LED spotlight"><span>◉</span><small>Light</small></button>
+        <button type="button" class="icon-button" id="fullscreen" aria-label="Enter fullscreen" title="Fullscreen">
+          <span aria-hidden="true">⛶</span><small>Full</small>
+        </button>
+      </div>
+    </nav>
+    <div class="gesture-hint" id="gesture-hint"><span class="gesture-icon">⌁</span><span id="gesture-copy">Drag to orbit</span><i></i> Pinch to zoom</div>
+
+  <script type="module" src="./viewer-v02.js?v=spotlight-v03"></script>
+  </body>
 </html>

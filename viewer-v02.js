@@ -559,6 +559,8 @@ function loadModel(url, revokeAfter = false) {
     });
     scene.add(currentModel);
     frameModel(currentModel);
+    sectionRange.value = '72';
+    setSection(true);
     document.body.classList.add('model-loaded');
     loading.hidden = true;
     if (revokeAfter) URL.revokeObjectURL(url);
@@ -699,8 +701,9 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-fetch('./assets/model.glb', { method: 'HEAD' }).then((response) => {
-  if (response.ok) loadModel('./assets/model.glb');
+const presentationModelUrl = 'https://pub-257e1c9ebc594af190aa6d311fcb5e4d.r2.dev/20260908.glb';
+fetch(presentationModelUrl, { method: 'HEAD' }).then((response) => {
+  if (response.ok) loadModel(presentationModelUrl);
 }).catch(() => {});
 
 updateLens();

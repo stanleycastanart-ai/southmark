@@ -53,3 +53,26 @@ button { font: inherit; }
 body.model-loaded .panel { display: none; }
 @media (max-width: 650px) { .brand { top: max(18px, env(safe-area-inset-top)); left: max(18px, env(safe-area-inset-left)); } .project-label { display: none; } .presentation-controls { left: max(10px, env(safe-area-inset-left)); right: max(10px, env(safe-area-inset-right)); bottom: max(10px, env(safe-area-inset-bottom)); justify-content:flex-start;gap:6px;align-items:flex-end; } .view-picker{overflow:visible}.view-button,.icon-button { width:64px;height:50px;flex-basis:64px;padding:0 5px;font-size:9px; } .utility-controls{gap:5px}.icon-button{font-size:17px}.icon-button small{font-size:7px}.gesture-hint { display: none; } .mode-rail{top:50%;bottom:auto;left:10px;transform:translateY(-50%);grid-template-columns:1fr;width:auto}.rail-button{min-width:68px;padding:9px 5px}.rail-button span{font-size:15px}.section-panel{left:auto;right:10px;width:min(240px,calc(100% - 20px));bottom:142px}.measurement-panel{bottom:72px;max-width:calc(100% - 30px)}.measurement-panel.on-line{bottom:auto}.camera-control{right:10px;bottom:70px;width:min(190px,calc(100% - 30px))}.sun-control{right:10px;top:max(70px,calc(env(safe-area-inset-top) + 48px));width:min(190px,calc(100% - 30px))}.spotlight-panel{right:10px;top:max(128px,calc(env(safe-area-inset-top) + 106px));width:min(240px,calc(100% - 20px))}.walk-joystick{left:18px;bottom:78px}.joystick-ring{width:104px;height:104px} }
 @media (max-width: 520px) { .panel { padding: 28px 22px; } .hint { display: none; } }
+
+/* WING HAN GROUP professional architectural interface */
+:root{color-scheme:light;--whg:#64783b;--whg-dark:#34401f;--paper:rgba(255,255,255,.9);--line:rgba(52,64,31,.14)}
+html,body{background:#eef0ed;color:#263023}
+.brand{top:0;left:0;right:0;height:78px;padding:14px 24px;background:rgba(255,255,255,.93);border-bottom:1px solid var(--line);gap:13px}
+.mark{width:42px;height:42px;border:0;border-radius:4px;background:#edf1e3;color:var(--whg);font-size:11px;letter-spacing:.04em;backdrop-filter:none}
+.brand strong{color:var(--whg-dark);font-size:13px;letter-spacing:.16em}.brand small{color:#76806d;font-size:8px;letter-spacing:.2em}
+.project-label{top:20px;right:24px;padding:10px 13px;border:1px solid var(--line);border-radius:9px;background:rgba(250,251,249,.9);color:#7c8476}.project-label b{color:var(--whg-dark)}.live-dot{background:#6f8a45;box-shadow:0 0 0 4px rgba(100,120,59,.12)}
+.lighting-compare{top:18px;border:1px solid var(--line);border-radius:10px;background:rgba(255,255,255,.9);box-shadow:0 8px 24px rgba(35,45,30,.08)}
+.lighting-compare button{color:#737b6b}.lighting-compare button.active{color:#fff;background:var(--whg)}
+.mode-rail{left:22px}.rail-button{min-width:78px;border:1px solid var(--line);border-radius:12px;color:#6f776b;background:var(--paper);box-shadow:0 10px 30px rgba(35,45,30,.08)}.rail-button.active,.rail-button:hover{color:#fff;background:var(--whg)}
+.presentation-controls{left:50%;right:auto;bottom:20px;transform:translateX(-50%);justify-content:center;overflow:visible}
+.view-picker,.icon-button{border-color:var(--line);background:var(--paper);box-shadow:0 10px 30px rgba(35,45,30,.1)}
+.view-picker{border-radius:13px}.view-button,.icon-button{color:#687063}.view-button{width:94px}.view-button:hover,.view-button.active,.icon-button:hover,.bottom-tool.active{color:#fff;background:var(--whg)}
+.icon-button{border-radius:11px}.gesture-hint{bottom:91px;color:#778075}.gesture-hint i{background:#9aa294}
+.camera-control,.sun-control,.section-panel,.spotlight-panel{border:1px solid var(--line);background:rgba(255,255,255,.92);box-shadow:0 15px 38px rgba(35,45,30,.1);color:#626b5d}
+.camera-control>div,.sun-control>div,.section-panel>div{color:#737c6d}.camera-control output,.sun-control output,.section-panel output,.spotlight-heading,.spotlight-panel label output{color:var(--whg)}
+.camera-control input,.sun-control input,.section-panel input,.spotlight-panel input{accent-color:var(--whg)}
+.section-panel button,.spotlight-heading button{color:#5e6759}.spotlight-panel p,.spotlight-panel label,.spotlight-panel>small{color:#747d70}.spotlight-panel p b{color:var(--whg-dark)}.spotlight-actions button{border-color:var(--line);background:#f4f6f1;color:#66705f}.spotlight-actions button.active,.spotlight-actions button.armed{background:var(--whg);border-color:var(--whg);color:#fff}
+.walk-joystick{color:#687163}.joystick-ring{border-color:rgba(100,120,59,.25);background:rgba(255,255,255,.72);box-shadow:inset 0 0 0 12px rgba(100,120,59,.04),0 12px 32px rgba(35,45,30,.1)}.joystick-knob{border-color:#fff;background:var(--whg)}
+.status{background:rgba(255,255,255,.94);color:var(--whg-dark);box-shadow:0 8px 24px rgba(35,45,30,.1)}
+.panel{border-color:var(--line);background:rgba(255,255,255,.94);box-shadow:0 22px 70px rgba(35,45,30,.14)}.panel h1{color:var(--whg-dark)}.panel p{color:#747d70}.eyebrow{color:var(--whg)!important}.button{background:var(--whg);color:#fff}.hint{color:#8b9387!important}
+@media(max-width:700px){.brand{height:70px;padding:11px 15px}.project-label{display:none}.lighting-compare{top:82px}.presentation-controls{left:8px;right:8px;transform:none;justify-content:flex-start;overflow-x:auto}.view-picker{flex:0 0 auto}.view-button{width:82px}.mode-rail{left:10px}.sun-control{top:134px}.camera-control{bottom:78px}}
