@@ -25,6 +25,7 @@ const lensRange = document.querySelector('#lens-range');
 const lensReadout = document.querySelector('#lens-readout');
 const sunRange = document.querySelector('#sun-range');
 const sunReadout = document.querySelector('#sun-readout');
+const autoRotateButton = document.querySelector('#auto-rotate');
 const spotlightTool = document.querySelector('#spotlight-tool');
 const spotlightPanel = document.querySelector('#spotlight-panel');
 const closeSpotlight = document.querySelector('#close-spotlight');
@@ -259,7 +260,7 @@ let transition;
 let modelBox;
 let savedViews = JSON.parse(localStorage.getItem('stanspace-saved-views') || '[]');
 let entranceView = JSON.parse(localStorage.getItem('stanspace-entrance-view') || 'null');
-let navigationMode = 'walk';
+let navigationMode = 'orbit';
 let measureMode = false;
 let measurementPoints = [];
 let measurementPointer;
@@ -420,6 +421,11 @@ function setNavigationMode(mode) {
   if (measureMode) setMeasureMode(false);
   navigationMode = mode;
   const walk = mode === 'walk';
+  if (walk && controls.autoRotate) {
+    controls.autoRotate = false;
+    autoRotateButton.classList.remove('active');
+    autoRotateButton.setAttribute('aria-pressed', 'false');
+  }
   controls.enabled = true;
   controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
   controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
@@ -524,6 +530,13 @@ document.querySelector('#close-section').addEventListener('click', () => setSect
 sectionRange.addEventListener('input', updateSection);
 lensRange.addEventListener('input', updateLens);
 sunRange.addEventListener('input', updateSunlight);
+autoRotateButton.addEventListener('click', () => {
+  if (navigationMode === 'walk') setNavigationMode('orbit');
+  controls.autoRotate = !controls.autoRotate;
+  controls.autoRotateSpeed = .55;
+  autoRotateButton.classList.toggle('active', controls.autoRotate);
+  autoRotateButton.setAttribute('aria-pressed', String(controls.autoRotate));
+});
 spotlightTool.addEventListener('click', () => setSpotlightPanel(spotlightPanel.hidden));
 closeSpotlight.addEventListener('click', () => setSpotlightPanel(false));
 spotlightToggle.addEventListener('click', () => {
@@ -715,5 +728,5 @@ fetch(presentationModelUrl, { method: 'HEAD' }).then((response) => {
 
 updateLens();
 updateSpotlight();
-setNavigationMode('walk');
+setNavigationMode('orbit');
 setLightingMode('enhanced');
