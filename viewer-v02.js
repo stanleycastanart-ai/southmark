@@ -110,13 +110,13 @@ function setLightingMode(mode) {
   const enhanced = mode === 'enhanced';
   enhancedLighting = enhanced;
   renderer.toneMapping = enhanced ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = enhanced ? 1.1 : 1.0;
+  renderer.toneMappingExposure = enhanced ? (modelHasEmbeddedLights ? .82 : 1.1) : 1.0;
   renderer.shadowMap.enabled = enhanced;
   renderer.shadowMap.needsUpdate = true;
-  scene.environmentIntensity = enhanced ? .72 : 1;
-  hemisphereLight.intensity = enhanced ? .32 : 0;
+  scene.environmentIntensity = enhanced ? (modelHasEmbeddedLights ? .5 : .72) : 1;
+  hemisphereLight.intensity = enhanced ? (modelHasEmbeddedLights ? .18 : .32) : 0;
   architecturalLight.intensity = enhanced ? (modelHasEmbeddedLights ? .9 : 2.8) : 0;
-  architecturalFill.intensity = enhanced ? .62 : 0;
+  architecturalFill.intensity = enhanced ? (modelHasEmbeddedLights ? .28 : .62) : 0;
   lightingButtons.forEach((button) => {
     const active = button.dataset.lighting === mode;
     button.classList.toggle('active', active);
@@ -571,6 +571,12 @@ function loadModel(url, revokeAfter = false) {
     currentModel.traverse((node) => {
       if (node.isLight) {
         modelHasEmbeddedLights = true;
+        // Blender exports punctual lights in physical units that are much too
+        // strong for this compact WebGL scene. Preserve their positions and
+        // colours, but map them into a stable presentation range.
+        if (node.isDirectionalLight) node.intensity = 1.5;
+        else if (node.isPointLight) node.intensity = 120;
+        else if (node.isSpotLight) node.intensity = 100;
         // Retain Blender illumination while keeping one predictable shadow map
         // from the viewer's architectural sun for iPad performance.
         node.castShadow = false;
