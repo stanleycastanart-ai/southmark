@@ -733,7 +733,7 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-const presentationModelUrl = 'https://pub-257e1c9ebc594af190aa6d311fcb5e4d.r2.dev/20260908_enhanced_web.glb?v=blender-51-v1';
+const presentationModelUrl = 'https://pub-257e1c9ebc594af190aa6d311fcb5e4d.r2.dev/20260908_enhanced_web.glb?v=blender-51-v2';
 fetch(presentationModelUrl, { method: 'HEAD' }).then((response) => {
   if (response.ok) loadModel(presentationModelUrl);
 }).catch(() => {});
