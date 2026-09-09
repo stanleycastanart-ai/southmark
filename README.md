@@ -1,8 +1,8 @@
-# STANSPACE Web 3D Viewer
+# WING HAN GROUP 3D Interior Viewer
 
-A minimal, mobile-friendly Three.js viewer for SketchUp-exported GLB models.
+A clean, touch-friendly architectural Three.js viewer for SketchUp-exported GLB models.
 
-Current public build: V02 presentation controls with Touch Move and two-point measurement.
+Current review build: basic platform UI with a lightweight placeholder interior.
 
 ## Add the presentation model
 
