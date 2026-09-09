@@ -79,6 +79,7 @@ scene.add(architecturalLight, architecturalLight.target);
 const architecturalFill = new THREE.DirectionalLight(0xe8f1ff, .62);
 scene.add(architecturalFill, architecturalFill.target);
 let enhancedLighting = true;
+let modelHasEmbeddedLights = false;
 
 function updateSunlight() {
   const hour = Number(sunRange.value);
@@ -98,7 +99,9 @@ function updateSunlight() {
     modelBox.min.y + size.y * .12,
     modelBox.min.z + size.z * .79,
   );
-  architecturalLight.intensity = enhancedLighting ? 1.35 + altitude * 1.75 : 0;
+  architecturalLight.intensity = enhancedLighting
+    ? (modelHasEmbeddedLights ? .45 + altitude * .55 : 1.35 + altitude * 1.75)
+    : 0;
   architecturalLight.target.updateMatrixWorld();
   architecturalLight.shadow.needsUpdate = true;
 }
@@ -112,7 +115,7 @@ function setLightingMode(mode) {
   renderer.shadowMap.needsUpdate = true;
   scene.environmentIntensity = enhanced ? .72 : 1;
   hemisphereLight.intensity = enhanced ? .32 : 0;
-  architecturalLight.intensity = enhanced ? 2.8 : 0;
+  architecturalLight.intensity = enhanced ? (modelHasEmbeddedLights ? .9 : 2.8) : 0;
   architecturalFill.intensity = enhanced ? .62 : 0;
   lightingButtons.forEach((button) => {
     const active = button.dataset.lighting === mode;
@@ -564,7 +567,15 @@ function loadModel(url, revokeAfter = false) {
   loader.load(url, (gltf) => {
     if (currentModel) scene.remove(currentModel);
     currentModel = gltf.scene;
+    modelHasEmbeddedLights = false;
     currentModel.traverse((node) => {
+      if (node.isLight) {
+        modelHasEmbeddedLights = true;
+        // Retain Blender illumination while keeping one predictable shadow map
+        // from the viewer's architectural sun for iPad performance.
+        node.castShadow = false;
+        return;
+      }
       if (!node.isMesh) return;
       const materials = Array.isArray(node.material) ? node.material : [node.material];
       node.castShadow = materials.every((material) => !material.transparent && material.opacity > .85);
@@ -579,6 +590,7 @@ function loadModel(url, revokeAfter = false) {
     });
     scene.add(currentModel);
     frameModel(currentModel);
+    setLightingMode('enhanced');
     sectionRange.value = '72';
     setSection(true);
     document.body.classList.add('model-loaded');
@@ -721,7 +733,7 @@ renderer.setAnimationLoop(() => {
   renderer.render(scene, camera);
 });
 
-const presentationModelUrl = 'https://pub-257e1c9ebc594af190aa6d311fcb5e4d.r2.dev/20260908.glb';
+const presentationModelUrl = 'https://pub-257e1c9ebc594af190aa6d311fcb5e4d.r2.dev/20260908_enhanced_web.glb?v=blender-51-v1';
 fetch(presentationModelUrl, { method: 'HEAD' }).then((response) => {
   if (response.ok) loadModel(presentationModelUrl);
 }).catch(() => {});
