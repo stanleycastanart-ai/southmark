@@ -42,7 +42,7 @@ const joystickKnob = joystick.querySelector('.joystick-knob');
 const lightingButtons = [...document.querySelectorAll('[data-lighting]')];
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0x0b0f17);
+scene.background = new THREE.Color(0xe9ece7);
 
 const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.01, 10000);
 camera.position.set(4, 3, 6);
@@ -52,7 +52,7 @@ renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(innerWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.AgXToneMapping;
-renderer.toneMappingExposure = 1.28;
+renderer.toneMappingExposure = 1.1;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.append(renderer.domElement);
@@ -60,22 +60,22 @@ container.append(renderer.domElement);
 const environment = new RoomEnvironment();
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(environment).texture;
-scene.environmentIntensity = .3;
+scene.environmentIntensity = .72;
 environment.dispose();
 pmrem.dispose();
 
 // Neutral architectural fill with a subtle 4500K key light. One shadow-casting
 // light keeps the interior soft while limiting GPU cost on iPad Safari.
-const hemisphereLight = new THREE.HemisphereLight(0xf4f7ff, 0xc8c1b5, .1);
+const hemisphereLight = new THREE.HemisphereLight(0xf5f7ff, 0xb8ad9d, .32);
 scene.add(hemisphereLight);
-const architecturalLight = new THREE.DirectionalLight(0xfff1dc, 4.1);
+const architecturalLight = new THREE.DirectionalLight(0xfff1dc, 2.8);
 architecturalLight.castShadow = true;
-architecturalLight.shadow.mapSize.set(1024, 1024);
+architecturalLight.shadow.mapSize.set(innerWidth > 900 ? 2048 : 1024, innerWidth > 900 ? 2048 : 1024);
 architecturalLight.shadow.bias = -.00015;
 architecturalLight.shadow.normalBias = .025;
 architecturalLight.shadow.radius = 4;
 scene.add(architecturalLight, architecturalLight.target);
-const architecturalFill = new THREE.DirectionalLight(0xe8f1ff, .28);
+const architecturalFill = new THREE.DirectionalLight(0xe8f1ff, .62);
 scene.add(architecturalFill, architecturalFill.target);
 let enhancedLighting = true;
 
@@ -97,7 +97,7 @@ function updateSunlight() {
     modelBox.min.y + size.y * .12,
     modelBox.min.z + size.z * .79,
   );
-  architecturalLight.intensity = enhancedLighting ? 2.5 + altitude * 2.2 : 0;
+  architecturalLight.intensity = enhancedLighting ? 1.35 + altitude * 1.75 : 0;
   architecturalLight.target.updateMatrixWorld();
   architecturalLight.shadow.needsUpdate = true;
 }
@@ -106,13 +106,13 @@ function setLightingMode(mode) {
   const enhanced = mode === 'enhanced';
   enhancedLighting = enhanced;
   renderer.toneMapping = enhanced ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = enhanced ? 1.28 : 1.05;
+  renderer.toneMappingExposure = enhanced ? 1.1 : 1.0;
   renderer.shadowMap.enabled = enhanced;
   renderer.shadowMap.needsUpdate = true;
-  scene.environmentIntensity = enhanced ? .3 : 1;
-  hemisphereLight.intensity = enhanced ? .1 : 0;
-  architecturalLight.intensity = enhanced ? 4.1 : 0;
-  architecturalFill.intensity = enhanced ? .28 : 0;
+  scene.environmentIntensity = enhanced ? .72 : 1;
+  hemisphereLight.intensity = enhanced ? .32 : 0;
+  architecturalLight.intensity = enhanced ? 2.8 : 0;
+  architecturalFill.intensity = enhanced ? .62 : 0;
   lightingButtons.forEach((button) => {
     const active = button.dataset.lighting === mode;
     button.classList.toggle('active', active);
@@ -556,6 +556,13 @@ function loadModel(url, revokeAfter = false) {
       const materials = Array.isArray(node.material) ? node.material : [node.material];
       node.castShadow = materials.every((material) => !material.transparent && material.opacity > .85);
       node.receiveShadow = true;
+      materials.forEach((material) => {
+        if ('envMapIntensity' in material) material.envMapIntensity = .85;
+        ['map','normalMap','roughnessMap','metalnessMap','aoMap'].forEach((key) => {
+          if (material[key]) material[key].anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+        });
+        material.needsUpdate = true;
+      });
     });
     scene.add(currentModel);
     frameModel(currentModel);
