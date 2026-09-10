@@ -3,16 +3,30 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+import { GTAOPass } from 'three/addons/postprocessing/GTAOPass.js';
+import { OutputPass } from 'three/addons/postprocessing/OutputPass.js';
 
 const container = document.querySelector('#viewer');
 const input = document.querySelector('#model-input');
 const loading = document.querySelector('#loading');
 const errorBox = document.querySelector('#error');
 const fullscreenButton = document.querySelector('#fullscreen');
-const viewButtons = [...document.querySelectorAll('.view-button')];
-const modeButtons = [...document.querySelectorAll('[data-mode]')];
+const viewButtons = [...document.querySelectorAll('.panel-view')];
+const savedCameraViews = document.querySelector('#saved-camera-views');
+const addCameraView = document.querySelector('#add-camera-view');
+const deleteCameraView = document.querySelector('#delete-camera-view');
+const interactiveTab = document.querySelector('#interactive-tab');
+const renderingTab = document.querySelector('#rendering-tab');
+const renderingOverlay = document.querySelector('#rendering-overlay');
+const renderingImage = document.querySelector('#rendering-image');
+const renderingMessage = document.querySelector('#rendering-message');
+const floorPlanCanvas = document.querySelector('#floor-plan-map');
+const floorPlanContext = floorPlanCanvas.getContext('2d');
 const topButton = document.querySelector('#top-view');
 const sectionButton = document.querySelector('#section-view');
+const sectionTool = document.querySelector('#section-tool');
 const sectionPanel = document.querySelector('#section-panel');
 const sectionRange = document.querySelector('#section-height');
 const sectionReadout = document.querySelector('#section-readout');
@@ -25,7 +39,6 @@ const lensRange = document.querySelector('#lens-range');
 const lensReadout = document.querySelector('#lens-readout');
 const sunRange = document.querySelector('#sun-range');
 const sunReadout = document.querySelector('#sun-readout');
-const autoRotateButton = document.querySelector('#auto-rotate');
 const spotlightTool = document.querySelector('#spotlight-tool');
 const spotlightPanel = document.querySelector('#spotlight-panel');
 const closeSpotlight = document.querySelector('#close-spotlight');
@@ -40,46 +53,62 @@ const spotlightInstruction = document.querySelector('#spotlight-instruction');
 const joystick = document.querySelector('#walk-joystick');
 const joystickRing = joystick.querySelector('.joystick-ring');
 const joystickKnob = joystick.querySelector('.joystick-knob');
-const lightingButtons = [...document.querySelectorAll('[data-lighting]')];
+const autoRotateToggle = document.querySelector('#auto-rotate');
+const modelVariant = new URLSearchParams(window.location.search).get('model');
+const savedViewsStorageKey = `stanspace-saved-views-${modelVariant || 'southmark'}`;
 
 const scene = new THREE.Scene();
-scene.background = new THREE.Color(0xe9ece7);
+scene.background = new THREE.Color(0xe7ebef);
 
-const camera = new THREE.PerspectiveCamera(45, innerWidth / innerHeight, 0.01, 10000);
+const camera = new THREE.PerspectiveCamera(45, container.clientWidth / innerHeight, 0.01, 10000);
 camera.position.set(4, 3, 6);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true, powerPreference: 'high-performance' });
-renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
-renderer.setSize(innerWidth, innerHeight);
+const renderPixelRatio = Math.min(devicePixelRatio, 1.35);
+renderer.setPixelRatio(renderPixelRatio);
+renderer.setSize(container.clientWidth, innerHeight);
 renderer.outputColorSpace = THREE.SRGBColorSpace;
 renderer.toneMapping = THREE.AgXToneMapping;
-renderer.toneMappingExposure = 1.1;
+renderer.toneMappingExposure = 1.03;
 renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 container.append(renderer.domElement);
 
+const composer = new EffectComposer(renderer);
+composer.setPixelRatio(renderPixelRatio);
+composer.setSize(container.clientWidth, innerHeight);
+composer.addPass(new RenderPass(scene, camera));
+const gtaoPass = new GTAOPass(scene, camera, container.clientWidth, innerHeight);
+gtaoPass.blendIntensity = .78;
+gtaoPass.pdSamples = 8;
+gtaoPass.pdRings = 2;
+composer.addPass(gtaoPass);
+composer.addPass(new OutputPass());
+let composerEnabled = true;
+
 const environment = new RoomEnvironment();
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(environment).texture;
-scene.environmentIntensity = .72;
+scene.environmentIntensity = .52;
 environment.dispose();
 pmrem.dispose();
 
 // Neutral architectural fill with a subtle 4500K key light. One shadow-casting
 // light keeps the interior soft while limiting GPU cost on iPad Safari.
-const hemisphereLight = new THREE.HemisphereLight(0xf5f7ff, 0xb8ad9d, .32);
+const hemisphereLight = new THREE.HemisphereLight(0xf8fbff, 0xaaa49a, .34);
 scene.add(hemisphereLight);
-const architecturalLight = new THREE.DirectionalLight(0xfff1dc, 2.8);
+const architecturalLight = new THREE.DirectionalLight(0xfff2df, 2.35);
 architecturalLight.castShadow = true;
-architecturalLight.shadow.mapSize.set(innerWidth > 900 ? 2048 : 1024, innerWidth > 900 ? 2048 : 1024);
+architecturalLight.shadow.mapSize.set(2048, 2048);
 architecturalLight.shadow.bias = -.00015;
-architecturalLight.shadow.normalBias = .025;
-architecturalLight.shadow.radius = 4;
+architecturalLight.shadow.normalBias = .018;
+architecturalLight.shadow.radius = 5;
 scene.add(architecturalLight, architecturalLight.target);
-const architecturalFill = new THREE.DirectionalLight(0xe8f1ff, .62);
+const architecturalFill = new THREE.DirectionalLight(0xe5efff, .48);
 scene.add(architecturalFill, architecturalFill.target);
+const interiorFill = new THREE.RectAreaLight(0xfff1dc, 2.4, 4, 4);
+scene.add(interiorFill);
 let enhancedLighting = true;
-let modelHasEmbeddedLights = false;
 
 function updateSunlight() {
   const hour = Number(sunRange.value);
@@ -99,9 +128,7 @@ function updateSunlight() {
     modelBox.min.y + size.y * .12,
     modelBox.min.z + size.z * .79,
   );
-  architecturalLight.intensity = enhancedLighting
-    ? (modelHasEmbeddedLights ? .45 + altitude * .55 : 1.35 + altitude * 1.75)
-    : 0;
+  architecturalLight.intensity = enhancedLighting ? 1.45 + altitude * 1.45 : 0;
   architecturalLight.target.updateMatrixWorld();
   architecturalLight.shadow.needsUpdate = true;
 }
@@ -110,22 +137,22 @@ function setLightingMode(mode) {
   const enhanced = mode === 'enhanced';
   enhancedLighting = enhanced;
   renderer.toneMapping = enhanced ? THREE.AgXToneMapping : THREE.ACESFilmicToneMapping;
-  renderer.toneMappingExposure = enhanced ? (modelHasEmbeddedLights ? .82 : 1.1) : 1.0;
+  renderer.toneMappingExposure = enhanced ? 1.03 : 1.05;
   renderer.shadowMap.enabled = enhanced;
   renderer.shadowMap.needsUpdate = true;
-  scene.environmentIntensity = enhanced ? (modelHasEmbeddedLights ? .5 : .72) : 1;
-  hemisphereLight.intensity = enhanced ? (modelHasEmbeddedLights ? .18 : .32) : 0;
-  architecturalLight.intensity = enhanced ? (modelHasEmbeddedLights ? .9 : 2.8) : 0;
-  architecturalFill.intensity = enhanced ? (modelHasEmbeddedLights ? .28 : .62) : 0;
-  lightingButtons.forEach((button) => {
-    const active = button.dataset.lighting === mode;
-    button.classList.toggle('active', active);
-    button.setAttribute('aria-pressed', String(active));
-  });
+  scene.environmentIntensity = enhanced ? .52 : 1;
+  hemisphereLight.intensity = enhanced ? .34 : 0;
+  architecturalLight.intensity = enhanced ? 2.35 : 0;
+  architecturalFill.intensity = enhanced ? .48 : 0;
+  interiorFill.intensity = enhanced ? 2.4 : 0;
   currentModel?.traverse((node) => {
     if (node.isMesh && node.material) {
       const materials = Array.isArray(node.material) ? node.material : [node.material];
-      materials.forEach((material) => { material.needsUpdate = true; });
+      materials.forEach((material) => {
+        material.envMapIntensity = enhanced ? .62 : 1;
+        if ('aoMapIntensity' in material) material.aoMapIntensity = 1.15;
+        material.needsUpdate = true;
+      });
     }
   });
   updateSunlight();
@@ -261,9 +288,13 @@ let currentSphere;
 let activeView = 'overview';
 let transition;
 let modelBox;
-let savedViews = JSON.parse(localStorage.getItem('stanspace-saved-views') || '[]');
+let savedViews = [];
+try { savedViews = JSON.parse(localStorage.getItem(savedViewsStorageKey) || '[]'); } catch { savedViews = []; }
+let presentationMode = 'interactive';
 let entranceView = JSON.parse(localStorage.getItem('stanspace-entrance-view') || 'null');
-let navigationMode = 'orbit';
+let floorPlanFootprints = [];
+let floorPlanLastDraw = 0;
+let navigationMode = 'walk';
 let measureMode = false;
 let measurementPoints = [];
 let measurementPointer;
@@ -329,6 +360,11 @@ function frameModel(model) {
     box.min.y + size.y * .18,
     box.min.z + size.z * .72,
   );
+  const center = box.getCenter(new THREE.Vector3());
+  interiorFill.position.set(center.x, box.max.y + size.y * .04, center.z);
+  interiorFill.width = Math.max(size.x * .7, 1);
+  interiorFill.height = Math.max(size.z * .7, 1);
+  interiorFill.lookAt(center.x, box.min.y, center.z);
   architecturalLight.shadow.camera.left = -shadowExtent;
   architecturalLight.shadow.camera.right = shadowExtent;
   architecturalLight.shadow.camera.top = shadowExtent;
@@ -342,7 +378,234 @@ function frameModel(model) {
 
 function setActiveView(name) {
   activeView = name;
-  viewButtons.forEach((button) => button.classList.toggle('active', button.dataset.view === name));
+  document.querySelectorAll('[data-view], [data-saved-view]').forEach((button) => {
+    button.classList.toggle('active', button.dataset.view === name || `saved:${button.dataset.savedView}` === name);
+  });
+  const selectedId = name.startsWith('saved:') ? name.slice(6) : '';
+  deleteCameraView.disabled = !savedViews.some((view) => view.id === selectedId);
+  updateRenderingView();
+}
+
+function setRenderingMessage(message) {
+  renderingImage.hidden = true;
+  renderingMessage.textContent = message;
+  renderingMessage.hidden = false;
+}
+
+function updateRenderingView() {
+  if (presentationMode !== 'rendering') return;
+  const selectedId = activeView.startsWith('saved:') ? activeView.slice(6) : '';
+  const index = savedViews.findIndex((view) => view.id === selectedId);
+  if (index < 0) {
+    setRenderingMessage('Choose a saved camera view first.');
+    return;
+  }
+  if (index >= 6) {
+    setRenderingMessage('Rendering is not available for this camera view yet.');
+    return;
+  }
+  const slot = String(index + 1).padStart(2, '0');
+  const src = `./assets/renders/${slot}.svg`;
+  renderingImage.alt = `${savedViews[index].name} rendering`;
+  if (renderingImage.dataset.src !== src) {
+    renderingImage.dataset.src = src;
+    renderingImage.src = src;
+    setRenderingMessage('Loading rendering…');
+    return;
+  }
+  renderingMessage.hidden = true;
+  renderingImage.hidden = false;
+}
+
+function setPresentationMode(mode) {
+  presentationMode = mode;
+  const rendering = mode === 'rendering';
+  document.body.classList.toggle('rendering-mode', rendering);
+  renderingOverlay.hidden = !rendering;
+  interactiveTab.classList.toggle('active', !rendering);
+  interactiveTab.setAttribute('aria-selected', String(!rendering));
+  renderingTab.classList.toggle('active', rendering);
+  renderingTab.setAttribute('aria-selected', String(rendering));
+  if (rendering) updateRenderingView();
+}
+
+renderingImage.addEventListener('load', () => {
+  if (presentationMode !== 'rendering') return;
+  renderingMessage.hidden = true;
+  renderingImage.hidden = false;
+});
+renderingImage.addEventListener('error', () => {
+  if (presentationMode === 'rendering') setRenderingMessage('Rendering could not be loaded.');
+});
+
+function persistSavedViews() {
+  try { localStorage.setItem(savedViewsStorageKey, JSON.stringify(savedViews)); } catch { /* Keep the current session usable if storage is blocked. */ }
+}
+
+function moveToSavedView(id) {
+  const view = savedViews.find((item) => item.id === id);
+  if (!view) return;
+  const toPosition = new THREE.Vector3().fromArray(view.position);
+  const toTarget = new THREE.Vector3().fromArray(view.target);
+  if (view.focalLength) {
+    lensRange.value = String(view.focalLength);
+    updateLens();
+  }
+  transition = {
+    start: performance.now(), duration: 900,
+    fromPosition: camera.position.clone(), fromTarget: controls.target.clone(),
+    toPosition, toTarget,
+  };
+  setActiveView(`saved:${id}`);
+}
+
+function renameSavedView(id) {
+  const view = savedViews.find((item) => item.id === id);
+  if (!view) return;
+  const nextName = window.prompt('Rename camera view', view.name);
+  if (!nextName?.trim()) return;
+  view.name = nextName.trim().slice(0, 40);
+  persistSavedViews();
+  renderSavedViews();
+  setActiveView(`saved:${id}`);
+}
+
+function renderSavedViews() {
+  savedCameraViews.replaceChildren();
+  savedViews.forEach((view, index) => {
+    const row = document.createElement('div');
+    row.className = 'saved-camera-row';
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'panel-view';
+    button.dataset.savedView = view.id;
+    const number = document.createElement('small');
+    number.textContent = String(index + 1).padStart(2, '0');
+    const name = document.createElement('b');
+    name.textContent = view.name;
+    const arrow = document.createElement('span');
+    arrow.textContent = '↗';
+    button.append(number, name, arrow);
+    button.addEventListener('click', () => moveToSavedView(view.id));
+    const options = document.createElement('button');
+    options.type = 'button';
+    options.className = 'camera-options';
+    options.textContent = '•••';
+    options.title = `Rename ${view.name}`;
+    options.setAttribute('aria-label', `Rename ${view.name}`);
+    options.addEventListener('click', () => renameSavedView(view.id));
+    row.append(button, options);
+    savedCameraViews.append(row);
+  });
+}
+
+function saveCurrentCamera() {
+  if (!currentModel) return;
+  const defaultName = `Camera ${savedViews.length + 1}`;
+  const name = window.prompt('Name this camera view', defaultName);
+  if (!name?.trim()) return;
+  const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+  savedViews.push({
+    id,
+    name: name.trim().slice(0, 40),
+    position: camera.position.toArray(),
+    target: controls.target.toArray(),
+    focalLength: Number(lensRange.value),
+  });
+  persistSavedViews();
+  renderSavedViews();
+  setActiveView(`saved:${id}`);
+}
+
+function deleteSelectedCamera() {
+  const id = activeView.startsWith('saved:') ? activeView.slice(6) : '';
+  const view = savedViews.find((item) => item.id === id);
+  if (!view || !window.confirm(`Delete camera view “${view.name}”?`)) return;
+  savedViews = savedViews.filter((item) => item.id !== id);
+  persistSavedViews();
+  renderSavedViews();
+  setActiveView('');
+}
+
+function collectFloorPlanFootprints(model) {
+  const footprints = [];
+  model.updateWorldMatrix(true, true);
+  model.traverse((node) => {
+    if (!node.isMesh) return;
+    const box = new THREE.Box3().setFromObject(node);
+    if (![box.min.x, box.max.x, box.min.z, box.max.z].every(Number.isFinite)) return;
+    const width = box.max.x - box.min.x;
+    const depth = box.max.z - box.min.z;
+    if (width < .015 || depth < .015) return;
+    footprints.push({ minX: box.min.x, maxX: box.max.x, minZ: box.min.z, maxZ: box.max.z, area: width * depth });
+  });
+  floorPlanFootprints = footprints.sort((a, b) => b.area - a.area).slice(0, 220);
+}
+
+function drawFloorPlan() {
+  if (!modelBox || !floorPlanContext) return;
+  const rect = floorPlanCanvas.getBoundingClientRect();
+  if (!rect.width || !rect.height) return;
+  const ratio = Math.min(window.devicePixelRatio || 1, 2);
+  const pixelWidth = Math.round(rect.width * ratio);
+  const pixelHeight = Math.round(rect.height * ratio);
+  if (floorPlanCanvas.width !== pixelWidth || floorPlanCanvas.height !== pixelHeight) {
+    floorPlanCanvas.width = pixelWidth;
+    floorPlanCanvas.height = pixelHeight;
+  }
+  const ctx = floorPlanContext;
+  ctx.setTransform(ratio, 0, 0, ratio, 0, 0);
+  const width = rect.width;
+  const height = rect.height;
+  ctx.clearRect(0, 0, width, height);
+  ctx.fillStyle = '#f4f6f1';
+  ctx.fillRect(0, 0, width, height);
+  const size = modelBox.getSize(new THREE.Vector3());
+  const padding = 13;
+  const scale = Math.min((width - padding * 2) / Math.max(size.x, .001), (height - padding * 2) / Math.max(size.z, .001));
+  const offsetX = (width - size.x * scale) / 2;
+  const offsetY = (height - size.z * scale) / 2;
+  const mapX = (x) => offsetX + (x - modelBox.min.x) * scale;
+  const mapY = (z) => height - offsetY - (z - modelBox.min.z) * scale;
+  ctx.strokeStyle = 'rgba(74, 84, 67, .18)';
+  ctx.lineWidth = 1;
+  floorPlanFootprints.forEach((footprint) => {
+    const x = mapX(footprint.minX);
+    const y = mapY(footprint.maxZ);
+    ctx.strokeRect(x, y, Math.max(1, (footprint.maxX - footprint.minX) * scale), Math.max(1, (footprint.maxZ - footprint.minZ) * scale));
+  });
+  ctx.strokeStyle = 'rgba(52, 64, 31, .55)';
+  ctx.lineWidth = 1.5;
+  ctx.strokeRect(offsetX, offsetY, size.x * scale, size.z * scale);
+  const markerX = THREE.MathUtils.clamp(mapX(camera.position.x), offsetX, width - offsetX);
+  const markerY = THREE.MathUtils.clamp(mapY(camera.position.z), offsetY, height - offsetY);
+  const direction = new THREE.Vector3();
+  camera.getWorldDirection(direction);
+  const directionLength = 25;
+  const spread = THREE.MathUtils.degToRad(24);
+  const heading = Math.atan2(-direction.z, direction.x);
+  ctx.fillStyle = 'rgba(100, 120, 59, .12)';
+  ctx.beginPath();
+  ctx.moveTo(markerX, markerY);
+  ctx.lineTo(markerX + Math.cos(heading - spread) * directionLength, markerY + Math.sin(heading - spread) * directionLength);
+  ctx.lineTo(markerX + Math.cos(heading + spread) * directionLength, markerY + Math.sin(heading + spread) * directionLength);
+  ctx.closePath();
+  ctx.fill();
+  ctx.strokeStyle = '#64783b';
+  ctx.lineWidth = 2.5;
+  ctx.beginPath();
+  ctx.moveTo(markerX, markerY);
+  ctx.lineTo(markerX + Math.cos(heading - spread) * directionLength, markerY + Math.sin(heading - spread) * directionLength);
+  ctx.moveTo(markerX, markerY);
+  ctx.lineTo(markerX + Math.cos(heading + spread) * directionLength, markerY + Math.sin(heading + spread) * directionLength);
+  ctx.stroke();
+  ctx.fillStyle = '#64783b';
+  ctx.beginPath();
+  ctx.arc(markerX, markerY, 6.5, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = 2;
+  ctx.stroke();
 }
 
 function applyEntrance(animate = true) {
@@ -424,18 +687,12 @@ function setNavigationMode(mode) {
   if (measureMode) setMeasureMode(false);
   navigationMode = mode;
   const walk = mode === 'walk';
-  if (walk && controls.autoRotate) {
-    controls.autoRotate = false;
-    autoRotateButton.classList.remove('active');
-    autoRotateButton.setAttribute('aria-pressed', 'false');
-  }
   controls.enabled = true;
   controls.mouseButtons.LEFT = THREE.MOUSE.ROTATE;
   controls.mouseButtons.RIGHT = THREE.MOUSE.PAN;
   controls.touches.ONE = THREE.TOUCH.ROTATE;
   controls.touches.TWO = THREE.TOUCH.DOLLY_PAN;
   controls.screenSpacePanning = true;
-  modeButtons.forEach((button) => button.classList.toggle('active', button.dataset.mode === mode));
   joystick.hidden = !walk;
   document.body.classList.toggle('walking', walk);
   gestureCopy.textContent = walk ? 'Use the joystick to walk · Drag to look' : 'Drag to orbit';
@@ -461,6 +718,7 @@ function setMeasureMode(enabled) {
   measurementPanel.hidden = !enabled;
   document.body.classList.toggle('measuring', enabled);
   if (enabled && measurementPoints.length === 2) clearMeasurement();
+  if (!enabled && navigationMode === 'orbit' && !autoRotateToggle.classList.contains('active')) setNavigationMode('walk');
 }
 
 function addMeasurementPoint(event) {
@@ -496,15 +754,15 @@ function addMeasurementPoint(event) {
 function updateMeasurementLabelPosition() {
   if (measurementPoints.length !== 2 || measurementPanel.hidden) return;
   const midpoint = measurementPoints[0].clone().lerp(measurementPoints[1], .5).project(camera);
-  const x = (midpoint.x * .5 + .5) * innerWidth;
-  const y = (-midpoint.y * .5 + .5) * innerHeight;
+  const rect = renderer.domElement.getBoundingClientRect();
+  const x = rect.left + (midpoint.x * .5 + .5) * rect.width;
+  const y = rect.top + (-midpoint.y * .5 + .5) * rect.height;
   measurementPanel.style.left = `${x}px`;
   measurementPanel.style.top = `${Math.max(44, y - 18)}px`;
 }
 
 
 function setSection(enabled) {
-  sectionPanel.hidden = !enabled;
   sectionButton.classList.toggle('active', enabled);
   const apply = (enabled && modelBox);
   scene.traverse((node) => {
@@ -514,6 +772,17 @@ function setSection(enabled) {
     }
   });
   if (enabled) updateSection();
+  else {
+    sectionPanel.hidden = true;
+    sectionTool.classList.remove('active');
+  }
+}
+
+function toggleSectionControl() {
+  const opening = sectionPanel.hidden;
+  if (opening && !sectionButton.classList.contains('active')) setSection(true);
+  sectionPanel.hidden = !opening;
+  sectionTool.classList.toggle('active', opening);
 }
 
 function updateSection() {
@@ -524,22 +793,29 @@ function updateSection() {
 }
 
 viewButtons.forEach((button) => button.addEventListener('click', () => moveToNamedView(button.dataset.view)));
-lightingButtons.forEach((button) => button.addEventListener('click', () => setLightingMode(button.dataset.lighting)));
-modeButtons.forEach((button) => button.addEventListener('click', () => setNavigationMode(button.dataset.mode)));
+addCameraView.addEventListener('click', saveCurrentCamera);
+deleteCameraView.addEventListener('click', deleteSelectedCamera);
+interactiveTab.addEventListener('click', () => setPresentationMode('interactive'));
+renderingTab.addEventListener('click', () => setPresentationMode(presentationMode === 'rendering' ? 'interactive' : 'rendering'));
 measureButton.addEventListener('click', () => setMeasureMode(!measureMode));
 topButton.addEventListener('click', moveToTopView);
-sectionButton.addEventListener('click', () => setSection(sectionPanel.hidden));
-document.querySelector('#close-section').addEventListener('click', () => setSection(false));
+sectionButton.addEventListener('click', () => setSection(!sectionButton.classList.contains('active')));
+sectionTool.addEventListener('click', toggleSectionControl);
+autoRotateToggle.addEventListener('click', () => {
+  const enabled = !autoRotateToggle.classList.contains('active');
+  autoRotateToggle.classList.toggle('active', enabled);
+  controls.autoRotate = enabled;
+  controls.autoRotateSpeed = .55;
+  if (enabled && navigationMode === 'walk') setNavigationMode('orbit');
+  if (!enabled && navigationMode === 'orbit') setNavigationMode('walk');
+});
+document.querySelector('#close-section').addEventListener('click', () => {
+  sectionPanel.hidden = true;
+  sectionTool.classList.remove('active');
+});
 sectionRange.addEventListener('input', updateSection);
 lensRange.addEventListener('input', updateLens);
 sunRange.addEventListener('input', updateSunlight);
-autoRotateButton.addEventListener('click', () => {
-  if (navigationMode === 'walk') setNavigationMode('orbit');
-  controls.autoRotate = !controls.autoRotate;
-  controls.autoRotateSpeed = .55;
-  autoRotateButton.classList.toggle('active', controls.autoRotate);
-  autoRotateButton.setAttribute('aria-pressed', String(controls.autoRotate));
-});
 spotlightTool.addEventListener('click', () => setSpotlightPanel(spotlightPanel.hidden));
 closeSpotlight.addEventListener('click', () => setSpotlightPanel(false));
 spotlightToggle.addEventListener('click', () => {
@@ -567,38 +843,35 @@ function loadModel(url, revokeAfter = false) {
   loader.load(url, (gltf) => {
     if (currentModel) scene.remove(currentModel);
     currentModel = gltf.scene;
-    modelHasEmbeddedLights = false;
     currentModel.traverse((node) => {
-      if (node.isLight) {
-        modelHasEmbeddedLights = true;
-        // Blender exports punctual lights in physical units that are much too
-        // strong for this compact WebGL scene. Preserve their positions and
-        // colours, but map them into a stable presentation range.
-        if (node.isDirectionalLight) node.intensity = 1.5;
-        else if (node.isPointLight) node.intensity = 120;
-        else if (node.isSpotLight) node.intensity = 100;
-        // Retain Blender illumination while keeping one predictable shadow map
-        // from the viewer's architectural sun for iPad performance.
-        node.castShadow = false;
-        return;
-      }
       if (!node.isMesh) return;
       const materials = Array.isArray(node.material) ? node.material : [node.material];
       node.castShadow = materials.every((material) => !material.transparent && material.opacity > .85);
       node.receiveShadow = true;
-      materials.forEach((material) => {
-        if ('envMapIntensity' in material) material.envMapIntensity = .85;
-        ['map','normalMap','roughnessMap','metalnessMap','aoMap'].forEach((key) => {
-          if (material[key]) material[key].anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
-        });
-        material.needsUpdate = true;
-      });
     });
     scene.add(currentModel);
+    collectFloorPlanFootprints(currentModel);
     frameModel(currentModel);
-    setLightingMode('enhanced');
+    gtaoPass.setSceneClipBox(modelBox);
+    const maxAnisotropy = Math.min(renderer.capabilities.getMaxAnisotropy(), 8);
+    currentModel.traverse((node) => {
+      if (!node.isMesh || !node.material) return;
+      const materials = Array.isArray(node.material) ? node.material : [node.material];
+      materials.forEach((material) => {
+        material.envMapIntensity = .62;
+        if ('aoMapIntensity' in material) material.aoMapIntensity = 1.15;
+        ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'aoMap'].forEach((key) => {
+          if (material[key]) {
+            material[key].anisotropy = maxAnisotropy;
+            material[key].needsUpdate = true;
+          }
+        });
+      });
+    });
     sectionRange.value = '72';
     setSection(true);
+    sectionPanel.hidden = true;
+    sectionTool.classList.remove('active');
     document.body.classList.add('model-loaded');
     loading.hidden = true;
     if (revokeAfter) URL.revokeObjectURL(url);
@@ -623,9 +896,10 @@ window.addEventListener('drop', (event) => {
 });
 
 window.addEventListener('resize', () => {
-  camera.aspect = innerWidth / innerHeight;
+  camera.aspect = container.clientWidth / innerHeight;
   camera.updateProjectionMatrix();
-  renderer.setSize(innerWidth, innerHeight);
+  renderer.setSize(container.clientWidth, innerHeight);
+  composer.setSize(container.clientWidth, innerHeight);
 });
 
 renderer.domElement.addEventListener('pointerdown', (event) => {
@@ -736,15 +1010,37 @@ renderer.setAnimationLoop(() => {
   walk(deltaSeconds);
   controls.update();
   updateMeasurementLabelPosition();
-  renderer.render(scene, camera);
+  if (now - floorPlanLastDraw > 100) {
+    drawFloorPlan();
+    floorPlanLastDraw = now;
+  }
+  if (composerEnabled) {
+    try { composer.render(); }
+    catch (error) {
+      console.warn('AO renderer disabled; using standard renderer.', error);
+      composerEnabled = false;
+      renderer.render(scene, camera);
+    }
+  } else renderer.render(scene, camera);
 });
 
-const presentationModelUrl = 'https://pub-257e1c9ebc594af190aa6d311fcb5e4d.r2.dev/20260908_enhanced_web.glb?v=blender-51-v2';
-fetch(presentationModelUrl, { method: 'HEAD' }).then((response) => {
-  if (response.ok) loadModel(presentationModelUrl);
+const initialModelUrl = modelVariant === 'meeting-room'
+  ? './assets/meeting_room_material_v01.glb'
+  : './assets/model.glb';
+
+if (modelVariant === 'meeting-room') {
+  const projectName = document.querySelector('.project-label b');
+  if (projectName) projectName.textContent = 'MEETING ROOM · MATERIAL V01';
+  const panelNote = document.querySelector('#panel-note');
+  if (panelNote) panelNote.textContent = 'Meeting room material test · 360 objects · 17 materials.';
+}
+
+fetch(initialModelUrl, { method: 'HEAD' }).then((response) => {
+  if (response.ok) loadModel(initialModelUrl);
 }).catch(() => {});
 
 updateLens();
 updateSpotlight();
-setNavigationMode('orbit');
+renderSavedViews();
+setNavigationMode('walk');
 setLightingMode('enhanced');
