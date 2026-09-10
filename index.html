@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-    <meta name="theme-color" content="#f7f8f5" />
-    <title>WING HAN GROUP · 3D INTERIOR VIEWER</title>
-    <link rel="stylesheet" href="./styles-v02.css?v=studio-v04" />
+    <meta name="theme-color" content="#111827" />
+  <title>WING HAN GROUP · 3D INTERIOR VIEWER</title>
+    <link rel="stylesheet" href="./styles-v02.css?v=github-public-v10" />
     <script type="importmap">
       {
         "imports": {
@@ -17,58 +17,53 @@
   </head>
   <body>
     <main id="viewer" aria-label="Interactive 3D viewer"></main>
-
-    <header class="topbar">
-      <div class="brand">
-        <span class="mark" aria-hidden="true">WH</span>
-        <div><strong>WING HAN GROUP</strong><small>3D INTERIOR VIEWER</small></div>
-      </div>
-      <div class="lighting-compare" role="group" aria-label="Lighting comparison">
-        <button type="button" data-lighting="original">Original</button>
-        <button type="button" class="active" data-lighting="enhanced">Enhanced</button>
-      </div>
-      <div class="project-label"><span class="live-dot"></span><span>LIVE MODEL</span><b>SOUTHMARK 23F</b></div>
-    </header>
-
-    <section class="project-card" aria-label="Project information">
-      <span>INSIDE THE PROJECT</span>
-      <h1>Southmark 23F</h1>
-      <p>Office interior <i></i> Interactive presentation</p>
+    <section id="rendering-overlay" class="rendering-overlay" aria-live="polite" hidden>
+      <img id="rendering-image" alt="" hidden />
+      <p id="rendering-message">Choose a saved camera view first.</p>
     </section>
 
-    <aside class="space-panel" aria-label="Space controls">
-      <div class="space-heading"><span>THE SPACE</span><h2>Explore the interior.</h2></div>
-      <div class="panel-tabs"><button class="active" type="button">Interactive 3D</button><button type="button" disabled>Render views</button></div>
-      <div class="view-list" role="group" aria-label="Camera views">
-        <button type="button" class="view-button active" data-view="entrance"><span>01</span><b>Back to Foyer</b><i>↗</i></button>
-        <button type="button" class="view-button" data-view="tree-a"><span>02</span><b>View 2</b><i>↗</i></button>
-        <button type="button" class="view-button" data-view="tree-b"><span>03</span><b>View 3</b><i>↗</i></button>
+    <header class="brand">
+      <span class="mark">WH</span>
+      <div>
+      <strong>WING HAN GROUP</strong>
+        <small>3D INTERIOR VIEWER</small>
       </div>
+    </header>
 
-      <div class="panel-divider"></div>
-      <button type="button" class="toggle-row active" id="section-view"><span class="row-icon">▱</span><b>Cutaway view</b><i class="switch"></i></button>
-      <button type="button" class="toggle-row" id="top-view"><span class="row-icon">⌗</span><b>Floor plan</b><i class="action-arrow">↗</i></button>
-      <button type="button" class="toggle-row" id="auto-rotate"><span class="row-icon">↻</span><b>Auto rotate</b><i class="switch"></i></button>
+    <section class="project-label" aria-label="Project information">
+      <span class="live-dot"></span>
+      <span>INTERIOR PRESENTATION</span>
+      <b>SOUTHMARK 23F</b>
+    </section>
 
-      <section class="sun-control" aria-label="Sunlight time control">
-        <div><span>SUNLIGHT · HKT</span><output id="sun-readout">11:00</output></div>
-        <input id="sun-range" type="range" min="7" max="19" value="11" step="0.25" aria-label="Sunlight time in Hong Kong time" />
-      </section>
-      <section class="camera-control" aria-label="Camera lens control">
-        <div><span>CAMERA LENS</span><output id="lens-readout">28 mm</output></div>
-        <input id="lens-range" type="range" min="15" max="50" value="28" step="1" aria-label="Camera lens from 15 to 50 millimetres" />
-      </section>
-
-      <div class="space-stats">
-        <div><strong>1,580</strong><small>sq ft · Workspace</small></div>
-        <div><strong>3</strong><small>Saved views</small></div>
-        <div><strong>3.4</strong><small>m · Ceiling</small></div>
+    <aside class="studio-panel" aria-label="Project explorer">
+      <p class="panel-kicker">THE SPACE</p>
+      <h1>Explore the interior.</h1>
+      <div class="panel-tabs" role="tablist" aria-label="Presentation mode">
+        <button type="button" class="active" id="interactive-tab" role="tab" aria-selected="true">Interactive 3D</button>
+        <button type="button" id="rendering-tab" role="tab" aria-selected="false">Rendering</button>
       </div>
-      <p class="space-note">Southmark 23F interactive office presentation. Drag, zoom or walk through the model.</p>
+      <div class="panel-views" role="group" aria-label="Camera views">
+        <div id="saved-camera-views" class="saved-camera-views"></div>
+      </div>
+      <div class="camera-actions">
+        <button type="button" class="camera-action add-camera-view" id="add-camera-view"><span>＋</span><b>Save current camera</b></button>
+        <button type="button" class="camera-action delete-camera-view" id="delete-camera-view" disabled><span>−</span><b>Delete selected</b></button>
+      </div>
+      <div class="panel-switches">
+        <button type="button" class="switch-row active" id="section-view"><span>Cutaway view</span><i></i></button>
+        <button type="button" class="switch-row" id="auto-rotate"><span>Auto rotate</span><i></i></button>
+      </div>
+      <section class="floor-plan-card" aria-label="Live floor plan and camera position">
+        <div class="floor-plan-heading"><b>FLOOR PLAN</b><span>LIVE POSITION</span></div>
+        <canvas id="floor-plan-map" width="520" height="300"></canvas>
+        <p><i></i>Current camera</p>
+      </section>
     </aside>
 
     <section id="welcome" class="panel">
-      <p class="eyebrow">READY FOR YOUR MODEL</p><h1>Explore the space</h1>
+      <p class="eyebrow">READY FOR YOUR MODEL</p>
+      <h1>Explore the space</h1>
       <p>Open a SketchUp-exported GLB file to preview it on this device.</p>
       <label class="button" for="model-input">Open GLB file</label>
       <input id="model-input" type="file" accept=".glb,model/gltf-binary" />
@@ -77,37 +72,53 @@
 
     <div id="loading" class="status" hidden>Loading space…</div>
     <div id="error" class="status error" hidden></div>
-    <section id="section-panel" class="section-panel" hidden>
-      <div><span>SECTION HEIGHT</span><button type="button" id="close-section" aria-label="Close section control">×</button></div>
-      <input id="section-height" type="range" min="0" max="100" value="100" aria-label="Section height" />
-      <output id="section-readout">—</output>
+    <section id="measurement-panel" class="measurement-panel" hidden>
+      <span id="measurement-copy">Tap the first point</span>
+      <strong id="measurement-result"></strong>
     </section>
-    <section id="measurement-panel" class="measurement-panel" hidden><span id="measurement-copy">Tap the first point</span><strong id="measurement-result"></strong></section>
+    <aside class="environment-controls" aria-label="Environment and camera controls">
+      <section class="sun-control" aria-label="Sunlight time control">
+        <div><span>SUN TIME · HKT</span><output id="sun-readout">11:00</output></div>
+        <input id="sun-range" type="range" min="7" max="19" value="11" step="0.25" aria-label="Sunlight time in Hong Kong time" />
+      </section>
+      <section class="camera-control" aria-label="Camera lens control">
+        <div><span>CAMERA LENS</span><output id="lens-readout">28 mm</output></div>
+        <input id="lens-range" type="range" min="15" max="50" value="28" step="1" aria-label="Camera lens from 15 to 50 millimetres" />
+      </section>
+      <section id="section-panel" class="section-panel" hidden>
+        <div><span>SECTION HEIGHT</span><button type="button" id="close-section" aria-label="Close section control">×</button></div>
+        <input id="section-height" type="range" min="0" max="100" value="100" aria-label="Section height" />
+        <output id="section-readout">—</output>
+      </section>
+    </aside>
     <section id="spotlight-panel" class="spotlight-panel" hidden aria-label="LED spotlight controls">
       <div class="spotlight-heading"><span>LED SPOTLIGHT</span><button type="button" id="close-spotlight" aria-label="Close spotlight controls">×</button></div>
       <p><b>IES TEST · 485 lm</b><span id="spotlight-count">0 SPOTS</span></p>
-      <div class="spotlight-actions"><button type="button" id="spotlight-toggle" class="active">ALL ON</button><button type="button" id="spotlight-place">ADD LIGHTS</button></div>
+      <div class="spotlight-actions">
+        <button type="button" id="spotlight-toggle" class="active">ALL ON</button>
+        <button type="button" id="spotlight-place">ADD LIGHTS</button>
+      </div>
       <label>OUTPUT <output id="spotlight-output">70%</output><input id="spotlight-output-range" type="range" min="0" max="100" value="70" step="1" aria-label="Spotlight output" /></label>
       <label>BEAM ANGLE <output id="spotlight-beam">22°</output><input id="spotlight-beam-range" type="range" min="12" max="45" value="22" step="1" aria-label="Spotlight beam angle" /></label>
       <small id="spotlight-instruction">Press Add lights, then tap the ceiling repeatedly.</small>
     </section>
-
-    <div id="walk-joystick" class="walk-joystick" aria-label="Walking joystick" hidden><div class="joystick-ring"><span class="joystick-knob"></span></div><small>Move</small></div>
-
+    <div id="walk-joystick" class="walk-joystick" aria-label="Walking joystick">
+      <div class="joystick-ring"><span class="joystick-knob"></span></div>
+      <small>Move</small>
+    </div>
     <nav class="presentation-controls" aria-label="Presentation controls">
-      <div class="mode-rail" aria-label="Navigation mode">
-        <button type="button" class="rail-button active" data-mode="orbit"><span>◎</span>Orbit</button>
-        <button type="button" class="rail-button" data-mode="walk"><span>♙</span>Walk</button>
-      </div>
       <div class="utility-controls">
         <button type="button" class="icon-button bottom-tool" id="measure-mode" aria-label="Measure" title="Measure"><span>⌑</span><small>Measure</small></button>
+        <button type="button" class="icon-button bottom-tool" id="top-view" aria-label="Top view" title="Top view"><span>⌁</span><small>Top</small></button>
         <button type="button" class="icon-button bottom-tool" id="spotlight-tool" aria-label="LED spotlight" title="LED spotlight"><span>◉</span><small>Light</small></button>
-        <button type="button" class="icon-button" id="fullscreen" aria-label="Enter fullscreen" title="Fullscreen"><span>⛶</span><small>Full</small></button>
+        <button type="button" class="icon-button bottom-tool" id="section-tool" aria-label="Section height" title="Section height"><span>▱</span><small>Section</small></button>
+        <button type="button" class="icon-button" id="fullscreen" aria-label="Enter fullscreen" title="Fullscreen">
+          <span aria-hidden="true">⛶</span><small>Full</small>
+        </button>
       </div>
     </nav>
-    <div class="gesture-hint" id="gesture-hint"><span class="gesture-icon">⌁</span><span id="gesture-copy">Drag to orbit</span><i></i> Right-drag to pan <i></i> Scroll to zoom</div>
-    <div class="view-caption"><span></span>CUTAWAY <i></i> SOUTHMARK 23F</div>
+    <div class="gesture-hint" id="gesture-hint"><span class="gesture-icon">⌁</span><span id="gesture-copy">Drag to orbit</span><i></i> Pinch to zoom</div>
 
-    <script type="module" src="./viewer-v02.js?v=studio-v08-lightfix"></script>
+  <script type="module" src="./viewer-v02.js?v=github-public-v10"></script>
   </body>
 </html>
